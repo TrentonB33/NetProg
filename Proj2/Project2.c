@@ -12,8 +12,18 @@
 
 int Child_Process(int pipe_fds, int sock_fd)
 {
-	TFTP *Packet
-	nbytes = read
+	TFTP *Packet;
+	bool alive = true;
+	fd_set readfds;
+	struct timeval tv;
+	int nfds = pipe +1;
+	int timeoutCount = 0;
+	tv.tv_sec = 1;
+	while(alive)
+	{
+		FD_ZERO(&readfds);
+		FD_SET(pipe_fds, &readfds);
+		select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
 	return 1;
 }
 
