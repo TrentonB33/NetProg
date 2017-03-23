@@ -4,17 +4,23 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <time.h>
 #include <ctype.h>
 #include <errno.h>
+#include <dirent.h>
 
 #define MAXSIZE 516
 
 
 
 #define BufLen 512
+
+//Function Prototypes
+int MakeSocket(uint16_t* port);
+void PopulateFiles(char** files, char* serverDir);
 
 struct RWPacket {
 	short OpCode;
@@ -92,18 +98,21 @@ int Child_Process(int pipe_fds, int sock_fd, struct  RWPacket type)//, struct Re
 	return 1;
 }
 
-//Function Prototypes
-int MakeSocket(uint16_t* port);
-
 
 
 int main (int arc, char** argv)
 
 {
 	uint16_t port = 0; 
+	int amtRead = 0;
+	
+	char fileDir[] = "ServerFiles\\";
+	char** curFiles = NULL;
 	
 	int socketFD = MakeSocket(&port);
 	printf("%d\n", (int)port);
+	
+	PopulateFiles(curFiles, fileDir);
 	
 	
 	struct sockaddr_in clientAddr;
@@ -113,10 +122,12 @@ int main (int arc, char** argv)
 	bzero(message, MAXSIZE);
 	bzero(&clientAddr, sizeof(struct sockaddr_in));
 	
-	recvfrom(socketFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
+	amtRead = recvfrom(socketFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
 	
 	printf("Got a message from: %il:%i\n", clientAddr.sin_addr.s_addr, clientAddr.sin_port);
-	printf("Message:\n%s", message);
+	printf("Size: %d\n", amtRead);
+	write(1, message, amtRead);
+	printf("\n");
 
 	
 	return 1;
@@ -160,11 +171,39 @@ int MakeSocket(uint16_t* port)
 	}
 	
 	*port = ntohs(tempAdr.sin_port);
-	
-	
-	
+
 	return serverFD;
+}
+
+
+void PopulateFiles(char** files, char* serverDir)
+{
 	
+	DIR* fileDir;
+	struct dirent* item;
+	
+	if((fileDir = opendir(serverDir)) != NULL)
+	{
+		
+	}
+	else
+	{
+		if(mkdir(serverDir, 0x666) == -1)
+		{
+			printf("mkdir Error\n");
+			printf("Errno: %d\n", errno);
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	
 }
+
+
+
+
+
+
+
+
 
