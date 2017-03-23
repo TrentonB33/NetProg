@@ -66,8 +66,16 @@ int Child_Process(int pipe_fds, int sock_fd, struct  RWPacket type)//, struct Re
 	int result = 0;
 	char block[512];
 	short WR = type.OpCode;
+	void* recv;
 	FILE *fp;
 	tv.tv_sec = 1;
+	if(WR == 1)
+		// cast buf into tftp struct ACK
+		fp = fopen(/*buf.FileName*/"","r");
+		//
+	}  else if(WR == 2){
+		// cast buf into tftp struct DATAGRAM
+	}
 	while(alive)
 	{
 		FD_ZERO(&readfds);
@@ -77,13 +85,9 @@ int Child_Process(int pipe_fds, int sock_fd, struct  RWPacket type)//, struct Re
 		{
 			timeoutCount = 0;
 			read(pipe_fds, buf, BufLen);
-			if(WR == 1)
-				// cast buf into tftp struct ACK
-				fp = fopen(/*buf.FileName*/"","r");
-				//
+			ParsePacket(
+			
 				
-			} else if(WR == 2){
-				// cast buf into tftp struct DATAGRAM
 			} else if(WR == 3){
 			
 			} else if(WR == 4){
@@ -233,7 +237,8 @@ int ParsePacket(char* buf, void* result)
 	} else if(*opCode == 5)
 	{
 		ep = malloc(sizeof(char)*512);
-		memcpy(ep,buf,512);
+		memcpy(ep,buf,4);
+		ep->ErrorMsg = strdup(buf+4)
 		result = ep;
 		
 	}
