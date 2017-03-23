@@ -14,20 +14,81 @@
 
 
 
-int Child_Process(int pipe_fds, int sock_fd)
+#define BufLen 512
+
+struct RWPacket {
+	short OpCode;
+	char* Filename;
+	char* Mode;
+	int HostTID;
+	int ClientTID;
+};
+
+struct DataPacket {
+	short Opcode;
+	short Block;
+	char* Data;
+};
+
+struct ACKPacket {
+	short Opcode;
+	short Block;
+};
+
+struct ErrorPacket {
+	short Opcode;
+	short Code;
+	char* ErrorMsg;
+};
+
+//WR=0 is a write request WR=1 is a read request
+
+
+
+int Child_Process(int pipe_fds, int sock_fd, struct  RWPacket type)//, struct Request_Datagram)
 {
-	TFTP *Packet;
-	bool alive = true;
+	struct DataPacket data;
+	struct ACKPacket ack;
+	struct ErrorPacket;
+	int alive = 1;
 	fd_set readfds;
+	char buf[BufLen];
 	struct timeval tv;
 	int nfds = pipe +1;
 	int timeoutCount = 0;
+	int result = 0;
+	char block[512];
+	int WR = 0;
+	FILE *fp;
 	tv.tv_sec = 1;
 	while(alive)
 	{
 		FD_ZERO(&readfds);
 		FD_SET(pipe_fds, &readfds);
-		select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
+		result = select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
+		if(result>0)
+		{
+			timeoutCount = 0;
+			read(pipe_fds, buf, BufLen);
+			if(WR == 1)
+				// cast buf into tftp struct ACK
+				fp = fopen(/*buf.FileName*/"","r");
+				//
+				
+			} else if(WR == 2){
+				// cast buf into tftp struct DATAGRAM
+			} else if(WR == 3){
+			
+			} else if(WR == 4){
+				
+			} else if(WR == 5){
+				
+			}
+			
+			
+			
+		}
+		
 	return 1;
 }
 
