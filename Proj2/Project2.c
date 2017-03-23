@@ -193,13 +193,16 @@ void PopulateFiles(char** files, char* serverDir)
 	DIR* fileDir;
 	struct dirent* item;
 	
+	umask(0);
+	
 	if((fileDir = opendir(serverDir)) != NULL)
 	{
+		//item = 
 		
 	}
 	else
 	{
-		if(mkdir(serverDir, 0x666) == -1)
+		if(mkdir(serverDir, NULL) == -1)
 		{
 			printf("mkdir Error\n");
 			printf("Errno: %d\n", errno);
