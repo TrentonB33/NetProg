@@ -8,18 +8,35 @@
 #include <unistd.h>
 #include <time.h>
 #include <ctype.h>
+#include <errno.h>
+
+#define MAXSIZE 516
+
 
 //Function Prototypes
-int MakeSocket(int port);
+int MakeSocket(uint16_t* port);
 
 
 
 int main (int arc, char** argv)
 {
-	int port = 69; // This is the fort defined or tFTP
+	uint16_t port = 0; 
 	
-	int socketFD = MakeSocket(port);
+	int socketFD = MakeSocket(&port);
+	printf("%d\n", (int)port);
 	
+	
+	struct sockaddr_in clientAddr;
+	socklen_t addrLen = 0;
+	
+	char message[MAXSIZE];
+	bzero(message, MAXSIZE);
+	bzero(&clientAddr, sizeof(struct sockaddr_in));
+	
+	recvfrom(socketFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
+	
+	printf("Got a message from: %il:%i\n", clientAddr.sin_addr.s_addr, clientAddr.sin_port);
+
 	
 	return 1;
 }
@@ -27,9 +44,10 @@ int main (int arc, char** argv)
 
 //This fuction creates the socket for the server, and binds it to port
 //Most cases this will be port 69 for this homework
-int MakeSocket(int port)
+int MakeSocket(uint16_t* port)
 {
 	int domain, type, protocol, serverFD;
+	struct sockaddr_in address, tempAdr;
 	
 	domain = AF_INET;
 	type = SOCK_DGRAM;
@@ -37,19 +55,29 @@ int MakeSocket(int port)
 	
 	serverFD = socket(domain, type, protocol);
 	
-	struct sockaddr_in address;
-	
 	bzero(&address, sizeof(struct sockaddr_in));
+	bzero(&tempAdr, sizeof(struct sockaddr_in));
 	
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = htonl(INADDR_ANY);
-	address.sin_port = htons(port);
+	address.sin_port = htons(0);
 	
-	if(bind(serverFD, (struct sockaddr *) &address, sizeof(address))==-1)
+	if(bind(serverFD, (struct sockaddr *) &address, sizeof(struct sockaddr_in))==-1)
 	{
 		printf("Bind() Error\n");
+		printf("Errno: %d\n", errno);
 		exit(EXIT_FAILURE);
 	}
+	
+	socklen_t tempsize = sizeof(tempAdr);
+	if(getsockname(serverFD, (struct sockaddr*)&tempAdr, &tempsize))
+	{
+		printf("getsockname() broke\n");
+	}
+	
+	*port = ntohs(tempAdr.sin_port);
+	
+	
 	
 	return serverFD;
 	
