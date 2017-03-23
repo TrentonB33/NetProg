@@ -55,6 +55,7 @@ int main (int arc, char** argv)
 	recvfrom(socketFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
 	
 	printf("Got a message from: %il:%i\n", clientAddr.sin_addr.s_addr, clientAddr.sin_port);
+	printf("Message:\n%s", message);
 
 	
 	return 1;
