@@ -116,8 +116,7 @@ int main (int arc, char** argv)
 {
 	uint16_t port = 0; 
 	int amtRead = 0;
-	
-	char fileDir[] = "ServerFiles";
+	char fileDir[] = "ServerFiles\\";
 	char** curFiles = NULL;
 	
 	int socketFD = MakeSocket(&port);
@@ -199,7 +198,7 @@ void PopulateFiles(char** files, char* serverDir)
 	}
 	else
 	{
-		if(mkdir(serverDir, 0x666) == -1)
+		if(mkdir(serverDir, 0777) == -1)
 		{
 			printf("mkdir Error\n");
 			printf("Errno: %d\n", errno);
