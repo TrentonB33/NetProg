@@ -117,7 +117,7 @@ int main (int arc, char** argv)
 	uint16_t port = 0; 
 	int amtRead = 0;
 	
-	char fileDir[] = "ServerFiles\\";
+	char fileDir[] = "ServerFiles";
 	char** curFiles = NULL;
 	
 	int socketFD = MakeSocket(&port);
