@@ -52,11 +52,11 @@ struct ErrorPacket {
 
 
 
-int Child_Process(int pipe_fds, int sock_fd, struct  RWPacket type)//, struct Request_Datagram)
+int Child_Process(int pipe_fds, int sock_fd, struct RWPacket* type)//, struct Request_Datagram)
 {
-	struct DataPacket data;
-	struct ACKPacket ack;
-	struct ErrorPacket;
+	struct DataPacket* data;
+	struct ACKPacket* ack;
+	struct ErrorPacket* err;
 	int alive = 1;
 	fd_set readfds;
 	char buf[BufLen];
@@ -65,20 +65,40 @@ int Child_Process(int pipe_fds, int sock_fd, struct  RWPacket type)//, struct Re
 	int timeoutCount = 0;
 	int result = 0;
 	char block[512];
-	short WR = type.OpCode;
+	short WR = type->OpCode;
 	void* recv;
-	int opCode, blockNum;
+	int opCode, blockNum, errsv;
 	FILE *fp;
 	blockNum = 0;
 	tv.tv_sec = 1;
+	
 	if(WR == 1)
 	{
 		// cast buf into tftp struct ACK
 		opCode = 3;
-		fp = fopen(/*buf.FileName*/"","r");
+		fp = fopen(/*buf.FileName*/type->Filename,"r");
+		errsv = errno;
+		if(errsv == 2)
+		{
+			err =  malloc(sizeof(char)*512);
+			err->OpCode = 05;
+			err->ErrCode = 01;
+			err->ErrorMsg = "File Does not Exist";
+			
+			
+		} //else if(
 		//
 	}  else if(WR == 2){
 		opCode = 4;
+		fp = fopen(type->Filename,"r");
+		errsv = errno;
+		if(fp != NULL)
+		{
+			err =  malloc(sizeof(char)*512);
+			err->OpCode = 05;
+			err->ErrCode = 06;
+			err->ErrorMsg = "File already exists";
+		}
 		
 		// cast buf into tftp struct DATAGRAM
 	}
@@ -87,7 +107,7 @@ int Child_Process(int pipe_fds, int sock_fd, struct  RWPacket type)//, struct Re
 		FD_ZERO(&readfds);
 		FD_SET(pipe_fds, &readfds);
 		result = select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
-		if(result>0 || block == 0)
+		if(result>0 || blockNum == 0)
 		{
 			timeoutCount = 0;
 			read(pipe_fds, buf, BufLen);
@@ -112,7 +132,6 @@ int Child_Process(int pipe_fds, int sock_fd, struct  RWPacket type)//, struct Re
 
 
 int main (int arc, char** argv)
-
 {
 	uint16_t port = 0; 
 	int amtRead = 0;
