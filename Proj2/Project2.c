@@ -53,7 +53,7 @@ struct ErrorPacket {
 
 
 
-int Child_Process(int pipe_fds, int sock_fd, struct RWPacket* type)//, struct Request_Datagram)
+int Child_Process( int sock_fd, struct RWPacket* type)//, struct Request_Datagram)
 {
 	struct DataPacket* data;
 	struct ACKPacket* ack;
@@ -106,12 +106,10 @@ int Child_Process(int pipe_fds, int sock_fd, struct RWPacket* type)//, struct Re
 	while(alive)
 	{
 		FD_ZERO(&readfds);
-		FD_SET(pipe_fds, &readfds);
 		result = select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
 		if(result>0 || blockNum == 0)
 		{
 			timeoutCount = 0;
-			read(pipe_fds, buf, BufLen);
 			ParsePacket(&buf, recv);
 			
 			if(opCode == 3){
@@ -161,7 +159,6 @@ int RunServer(int sockFD)
 	pid_t* childProcs = (pid_t*)calloc(maxChildren, sizeof(pid_t));
 	pid_t childID = 0;
 	
-	int* pipeIDs = (int *)calloc(maxChildren, sizeof(int));
 	int tempPipes[2];
 	
 	
@@ -186,32 +183,25 @@ int RunServer(int sockFD)
 		
 		if(opCode < 3)
 		{
-			if(pipe(tempPipes) == -1)
-			{
-				printf("pipe() Error\n");
-				printf("Errno: %d\n", errno);
-				exit(EXIT_FAILURE);
-			}
+			
 			childID = fork();
 			if(childID == 0)
 			{
-				close(tempPipes[0]);
-				Child_Process(tempPipes[1], sockFD, (struct RWPacket *) result);
+				Child_Process (sockFD, (struct RWPacket *) result);
 				//remember to pipe to the parent that the process is over, or research
 				//again how the parent knows the child ended.
 			}
 			else if(childID > 0)
 			{
-				close(tempPipes[1]);
 				if(curChildren == maxChildren)
 				{
+					
 					pid_t* temp = (pid_t*) calloc(maxChildren, sizeof(pid_t));
 					memcpy(temp, childProcs, maxChildren);
 					maxChildren = maxChildren * 2;
 					childProcs = (pid_t*) calloc(maxChildren, sizeof(pid_t));
 					memcpy(childProcs,temp, maxChildren/2);	
 					
-					//need to add more pipes
 				}
 				
 				curChildren++;
