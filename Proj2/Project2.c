@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <dirent.h>
+#include <fcntl.h>
 
 #define MAXSIZE 516
 
@@ -153,7 +154,15 @@ int RunServer(int sockFD)
 	char message[MAXSIZE];
 	
 	int opCode = 0;
-	void* result;
+	void* result = NULL;
+	
+	int maxChildren = 2;
+	int curChildren = 0;
+	pid_t* childProcs = (pid_t*)calloc(maxChildren, sizeof(pid_t));
+	pid_t childID = 0;
+	
+	int* pipeIDs = (int *)calloc(maxChildren, sizeof(int));
+	int tempPipes[2];
 	
 	
 	int running = 1;
@@ -171,9 +180,44 @@ int RunServer(int sockFD)
 
 		printf("Size: %d\n", amtRead);
 		write(1, message, amtRead);
-		printf("\naddrLen Size: %d", addrLen);
-		write(1, &clientAddr, addrLen);
 		printf("\n");
+		
+		opCode = ParsePacket(message, result);
+		
+		if(opCode < 3)
+		{
+			if(pipe(tempPipes) == -1)
+			{
+				printf("pipe() Error\n");
+				printf("Errno: %d\n", errno);
+				exit(EXIT_FAILURE);
+			}
+			childID = fork();
+			if(childID == 0)
+			{
+				close(tempPipes[0]);
+				Child_Process(tempPipes[1], sockFD, (struct RWPacket *) result);
+				//remember to pipe to the parent that the process is over, or research
+				//again how the parent knows the child ended.
+			}
+			else if(childID > 0)
+			{
+				close(tempPipes[1]);
+				if(curChildren == maxChildren)
+				{
+					pid_t* temp = (pid_t*) calloc(maxChildren, sizeof(pid_t));
+					memcpy(temp, childProcs, maxChildren);
+					maxChildren = maxChildren * 2;
+					childProcs = (pid_t*) calloc(maxChildren, sizeof(pid_t));
+					memcpy(childProcs,temp, maxChildren/2);	
+					
+					//need to add more pipes
+				}
+				
+				curChildren++;
+				childProcs[curChildren] = childID;
+			}
+		}
 		
 		
 	}
