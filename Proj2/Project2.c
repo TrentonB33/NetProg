@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <dirent.h>
+#include <fcntl.h>
 
 #define MAXSIZE 516
 
@@ -21,6 +22,7 @@
 //Function Prototypes
 int MakeSocket(uint16_t* port);
 int ParsePacket(char* buf, void* result);
+int RunServer(int sockFD);
 
 struct RWPacket {
 	short OpCode;
@@ -204,37 +206,98 @@ int Child_Process(int pipe_fds, struct sockaddr_in * dest, struct RWPacket* type
 
 int main (int arc, char** argv)
 {
-	uint16_t port = 0; 
-	int amtRead = 0;
-	
+	uint16_t port = 0; 	
 	int socketFD = MakeSocket(&port);
+	
 	printf("%d\n", (int)port);
 	
+	RunServer(socketFD);
 	
+	return EXIT_SUCCESS;
+}
+
+//Runs the server
+int RunServer(int sockFD)
+{
 	struct sockaddr_in clientAddr;
 	socklen_t addrLen = 0;
 	
+	int amtRead = 0;
 	char message[MAXSIZE];
-	bzero(message, MAXSIZE);
-	bzero(&clientAddr, sizeof(struct sockaddr_in));
 	
-	amtRead = recvfrom(socketFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
+	int opCode = 0;
+	void* result = NULL;
 	
-	printf("Got a message from: %i:%i\n", ntohl(clientAddr.sin_addr.s_addr), 
-		   ntohs(clientAddr.sin_port));
+	int maxChildren = 2;
+	int curChildren = 0;
+	pid_t* childProcs = (pid_t*)calloc(maxChildren, sizeof(pid_t));
+	pid_t childID = 0;
 	
-	printf("Size: %d\n", amtRead);
-	write(1, message, amtRead);
-	printf("\naddrLen Size: %d", addrLen);
-	write(1, &clientAddr, addrLen);
-	printf("\n");
+	int* pipeIDs = (int *)calloc(maxChildren, sizeof(int));
+	int tempPipes[2];
+	
+	
+	int running = 1;
+	
+	while(running)
+	{
+		
+		bzero(message, MAXSIZE);
+		bzero(&clientAddr, sizeof(struct sockaddr_in));
 
+		amtRead = recvfrom(sockFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
+
+		printf("Got a message from: %d:%d\n", ntohl(clientAddr.sin_addr.s_addr), 
+			   ntohs(clientAddr.sin_port));
+
+		printf("Size: %d\n", amtRead);
+		write(1, message, amtRead);
+		printf("\n");
+		
+		opCode = ParsePacket(message, result);
+		
+		if(opCode < 3)
+		{
+			if(pipe(tempPipes) == -1)
+			{
+				printf("pipe() Error\n");
+				printf("Errno: %d\n", errno);
+				exit(EXIT_FAILURE);
+			}
+			childID = fork();
+			if(childID == 0)
+			{
+				close(tempPipes[0]);
+				Child_Process(tempPipes[1], sockFD, (struct RWPacket *) result);
+				//remember to pipe to the parent that the process is over, or research
+				//again how the parent knows the child ended.
+			}
+			else if(childID > 0)
+			{
+				close(tempPipes[1]);
+				if(curChildren == maxChildren)
+				{
+					pid_t* temp = (pid_t*) calloc(maxChildren, sizeof(pid_t));
+					memcpy(temp, childProcs, maxChildren);
+					maxChildren = maxChildren * 2;
+					childProcs = (pid_t*) calloc(maxChildren, sizeof(pid_t));
+					memcpy(childProcs,temp, maxChildren/2);	
+					
+					//need to add more pipes
+				}
+				
+				curChildren++;
+				childProcs[curChildren] = childID;
+			}
+		}
+		
+		
+	}
 	
-	return 1;
+	return EXIT_SUCCESS;
+	
+	
 }
-
-
-
 
 
 //This fuction creates the socket for the server, and binds it to port
