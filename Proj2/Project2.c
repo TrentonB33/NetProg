@@ -20,7 +20,6 @@
 
 //Function Prototypes
 int MakeSocket(uint16_t* port);
-void PopulateFiles(char** files, char* serverDir);
 int ParsePacket(char* buf, void* result);
 
 struct RWPacket {
@@ -117,13 +116,8 @@ int main (int arc, char** argv)
 	uint16_t port = 0; 
 	int amtRead = 0;
 	
-	char fileDir[] = "ServerFiles";
-	char** curFiles = NULL;
-	
 	int socketFD = MakeSocket(&port);
 	printf("%d\n", (int)port);
-	
-	PopulateFiles(curFiles, fileDir);
 	
 	
 	struct sockaddr_in clientAddr;
@@ -135,9 +129,13 @@ int main (int arc, char** argv)
 	
 	amtRead = recvfrom(socketFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
 	
-	printf("Got a message from: %il:%i\n", clientAddr.sin_addr.s_addr, clientAddr.sin_port);
+	printf("Got a message from: %i:%i\n", ntohl(clientAddr.sin_addr.s_addr), 
+		   ntohs(clientAddr.sin_port));
+	
 	printf("Size: %d\n", amtRead);
 	write(1, message, amtRead);
+	printf("\naddrLen Size: %d", addrLen);
+	write(1, &clientAddr, addrLen);
 	printf("\n");
 
 	
@@ -184,33 +182,6 @@ int MakeSocket(uint16_t* port)
 	*port = ntohs(tempAdr.sin_port);
 
 	return serverFD;
-}
-
-
-void PopulateFiles(char** files, char* serverDir)
-{
-	
-	DIR* fileDir;
-	struct dirent* item;
-	
-	umask(0);
-	
-	if((fileDir = opendir(serverDir)) != NULL)
-	{
-		//item = 
-		
-	}
-	else
-	{
-		if(mkdir(serverDir, NULL) == -1)
-		{
-			printf("mkdir Error\n");
-			printf("Errno: %d\n", errno);
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	
 }
 
 //Pass the destination variable in as result(an empty void*) and the packet in as buf.  The function places the resulting packet struct in result and returns the ID of the struct
