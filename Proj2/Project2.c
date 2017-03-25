@@ -53,45 +53,64 @@ struct ErrorPacket {
 
 
 
-int Child_Process( int sock_fd, struct RWPacket* type)//, struct Request_Datagram)
+
+int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct Request_Datagram)
 {
 	struct DataPacket* data;
 	struct ACKPacket* ack;
 	struct ErrorPacket* err;
+	
+	uint16_t port = 0; 
 	int alive = 1;
+	
 	fd_set readfds;
 	char buf[BufLen];
 	struct timeval tv;
-	int nfds = pipe +1;
 	int timeoutCount = 0;
 	int result = 0;
-	char block[512];
+	char block[BufLen];
+	
 	short WR = type->OpCode;
-	void* recv;
-	int opCode, blockNum, errsv;
-	FILE *fp;
+	void* recv = NULL;
+	int opCode, blockNum, errsv, written;
+	FILE * fp;
+	
+	int socketFD = MakeSocket(&port);
+	int nfds = socketFD+1;
+	struct sockaddr_in clientAddr;
+	socklen_t addrLen = 0;
+	
 	blockNum = 0;
 	tv.tv_sec = 1;
-	
+	bzero(buf, BufLen);
 	if(WR == 1)
 	{
 		// cast buf into tftp struct ACK
 		opCode = 3;
-		fp = fopen(/*buf.FileName*/type->Filename,"r");
+		fp = fopen(/*buf.FileName*/type->Filename, "r");
 		errsv = errno;
 		if(errsv == 2)
 		{
 			err =  malloc(sizeof(char)*512);
-			err->OpCode = 05;
-			err->ErrCode = 01;
+			err->OpCode = 5;
+			err->ErrCode = 1;
 			err->ErrorMsg = "File Does not Exist";
-			
-			
+			sendto(socketFD, err, 512, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
+			free(err);
+			free(type);
+			close(pipe_fds);
+			return 1;
 		} //else if(
+		fread(&block, BufLen, 1, fp);
+		data = malloc(sizeof(char)*516);
+		data->OpCode = 3;
+		data->Block = blockNum;
+		data->Data = block;
+		sendto(socketFD, data,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 		//
 	}  else if(WR == 2){
 		opCode = 4;
-		fp = fopen(type->Filename,"r");
+		fp = fopen(/*buf.FileName*/type->Filename, "r");
 		errsv = errno;
 		if(fp != NULL)
 		{
@@ -99,25 +118,81 @@ int Child_Process( int sock_fd, struct RWPacket* type)//, struct Request_Datagra
 			err->OpCode = 05;
 			err->ErrCode = 06;
 			err->ErrorMsg = "File already exists";
+			sendto(socketFD, err, 512, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
+			free(err);
+			free(type);
+			fclose(fp);
+			close(pipe_fds);
+			return 1;
 		}
+		fp = fopen(type->Filename, "w");
 		
 		// cast buf into tftp struct DATAGRAM
 	}
-	while(alive)
+	while(alive  && timeoutCount<10)
 	{
+		bzero(buf, BufLen);
 		FD_ZERO(&readfds);
+		FD_SET(socketFD, &readfds);
 		result = select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
 		if(result>0 || blockNum == 0)
 		{
 			timeoutCount = 0;
-			ParsePacket(&buf, recv);
+			recvfrom(socketFD, buf, BufLen, 0, (struct sockaddr*) &clientAddr, &addrLen);
+			opCode = ParsePacket(buf, recv);
 			
 			if(opCode == 3){
-			
+				data = recv;
+				if(data->Block == blockNum)
+				{
+					written = fwrite(data->Data, BufLen, 1, fp);
+					free(ack);
+					ack = malloc(sizeof(char)*4);
+					ack->OpCode = 4;
+					ack->Block = blockNum;
+					sendto(socketFD, data,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
+					if(written < 512)
+					{
+						free(data);
+						free(ack);
+						fclose(fp);
+						close(socketFD);
+						free(dest);
+						free(type);
+						return 0;
+					}
+					blockNum++;
+				}
+
+				
 			} else if(opCode == 4){
+				if(written<512)
+				{
+					free(data);
+					free(ack);
+					fclose(fp);
+					close(socketFD);
+					free(dest);
+					free(type);
+					return 0;
+				}
+				free(data);
+				fread(&block, BufLen, 1, fp);
+				data = malloc(sizeof(char)*516);
+				data->OpCode = 3;
+				data->Block = blockNum;
+				data->Data = block;
+				written = sendto(socketFD, data,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
+				blockNum++;
 				
-			} else if(WR == 5){
-				
+			} else if(opCode == 5){
+				free(data);
+				free(ack);
+				fclose(fp);
+				free(dest);
+				free(type);
+				close(socketFD);
+				return 1;
 			}
 				
 		}
