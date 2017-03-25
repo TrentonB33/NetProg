@@ -21,6 +21,7 @@
 //Function Prototypes
 int MakeSocket(uint16_t* port);
 int ParsePacket(char* buf, void* result);
+int RunServer(int sockFD);
 
 struct RWPacket {
 	short OpCode;
@@ -113,37 +114,55 @@ int Child_Process(int pipe_fds, int sock_fd, struct  RWPacket type)//, struct Re
 int main (int arc, char** argv)
 
 {
-	uint16_t port = 0; 
-	int amtRead = 0;
-	
+	uint16_t port = 0; 	
 	int socketFD = MakeSocket(&port);
+	
 	printf("%d\n", (int)port);
 	
+	RunServer(socketFD);
 	
+	return EXIT_SUCCESS;
+}
+
+//Runs the server
+int RunServer(int sockFD)
+{
 	struct sockaddr_in clientAddr;
 	socklen_t addrLen = 0;
 	
+	int amtRead = 0;
 	char message[MAXSIZE];
-	bzero(message, MAXSIZE);
-	bzero(&clientAddr, sizeof(struct sockaddr_in));
 	
-	amtRead = recvfrom(socketFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
+	int opCode = 0;
+	void* result;
 	
-	printf("Got a message from: %i:%i\n", ntohl(clientAddr.sin_addr.s_addr), 
-		   ntohs(clientAddr.sin_port));
 	
-	printf("Size: %d\n", amtRead);
-	write(1, message, amtRead);
-	printf("\naddrLen Size: %d", addrLen);
-	write(1, &clientAddr, addrLen);
-	printf("\n");
+	int running = 1;
+	
+	while(running)
+	{
+		
+		bzero(message, MAXSIZE);
+		bzero(&clientAddr, sizeof(struct sockaddr_in));
 
+		amtRead = recvfrom(sockFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
+
+		printf("Got a message from: %d:%d\n", ntohl(clientAddr.sin_addr.s_addr), 
+			   ntohs(clientAddr.sin_port));
+
+		printf("Size: %d\n", amtRead);
+		write(1, message, amtRead);
+		printf("\naddrLen Size: %d", addrLen);
+		write(1, &clientAddr, addrLen);
+		printf("\n");
+		
+		
+	}
 	
-	return 1;
+	return EXIT_SUCCESS;
+	
+	
 }
-
-
-
 
 
 //This fuction creates the socket for the server, and binds it to port
