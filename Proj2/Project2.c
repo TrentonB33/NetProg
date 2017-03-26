@@ -253,7 +253,7 @@ int main (int arc, char** argv)
 //Runs the server
 int RunServer(int sockFD)
 {
-	struct sockaddr_in clientAddr = calloc(1,sizeof(struct sockaddr_in));
+	struct sockaddr_in* clientAddr = (struct sockaddr_in*)calloc(1,sizeof(struct sockaddr_in));
 	socklen_t addrLen = 0;
 	
 	int amtRead = 0;
@@ -276,10 +276,10 @@ int RunServer(int sockFD)
 		bzero(message, MAXSIZE);
 		bzero(&clientAddr, sizeof(struct sockaddr_in));
 
-		amtRead = recvfrom(sockFD, message, MAXSIZE, 0, (struct sockaddr *) &clientAddr, &addrLen);
+		amtRead = recvfrom(sockFD, message, MAXSIZE, 0, (struct sockaddr *) clientAddr, &addrLen);
 
-		printf("Got a message from: %d:%d\n", ntohl(clientAddr.sin_addr.s_addr), 
-			   ntohs(clientAddr.sin_port));
+		printf("Got a message from: %d:%d\n", ntohl(clientAddr->sin_addr.s_addr), 
+			   ntohs(clientAddr->sin_port));
 
 		printf("Size: %d\n", amtRead);
 		write(1, message, amtRead);
@@ -295,7 +295,7 @@ int RunServer(int sockFD)
 			if(childID == 0)
 			{
 				printf("I'm a child!!   %d\n", ((struct RWPacket*)result)->OpCode);
-				Child_Process (&clientAddr, (struct RWPacket *) result);
+				Child_Process (clientAddr, (struct RWPacket *) result);
 				//remember to pipe to the parent that the process is over, or research
 				//again how the parent knows the child ended.
 			}
@@ -351,7 +351,7 @@ int MakeSocket(uint16_t* port)
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = htonl(INADDR_ANY);
 	
-	if(*port != 0)
+	if(*port == 0)
 		address.sin_port = htons(0);
 	else
 		address.sin_port = htons(*port);
