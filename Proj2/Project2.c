@@ -149,7 +149,8 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 	}
 	while(alive  && timeoutCount<10)
 	{
-		//printf("HI! %d, %d\n", timeoutCount, blockNum);
+		usleep(10);
+		printf("HI! %d, %d\n", timeoutCount, blockNum);
 		bzero(buf, BufLen);
 		FD_ZERO(&readfds);
 		FD_SET(socketFD, &readfds);
@@ -233,6 +234,10 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 				free(type);
 				close(socketFD);
 				return 1;
+			} else {
+				
+				SendErrorPacket(socketFD, 4, "Unknown TFTP operation", dest);
+				
 			}
 				
 		} else {
@@ -481,6 +486,7 @@ void CheckChildren(pid_t* children, int* curSize)
 		itr++;
 	}
 	
+	printf("Current Size: %d\n", *curSize);
 	qsort(children, origSize, sizeof(pid_t), compare);
 }
 
