@@ -25,6 +25,8 @@ int MakeSocket(uint16_t* port);
 int ParsePacket(char* buf, void* result);
 int RunServer(int sockFD);
 void CheckChildren(pid_t* children, int* curSize);
+int compare (const void * a, const void * b);
+
 
 struct RWPacket {
 	short OpCode;
@@ -242,7 +244,7 @@ int main (int arc, char** argv)
 //Runs the server
 int RunServer(int sockFD)
 {
-	struct sockaddr_in clientAddr;
+	struct sockaddr_in clientAddr = calloc(1,sizeof(struct sockaddr_in));
 	socklen_t addrLen = 0;
 	
 	int amtRead = 0;
@@ -313,6 +315,8 @@ int RunServer(int sockFD)
 		
 	}
 	
+	free(clientAddr);
+	
 	return EXIT_SUCCESS;
 }
 
@@ -335,7 +339,11 @@ int MakeSocket(uint16_t* port)
 	
 	address.sin_family = AF_INET;
 	address.sin_addr.s_addr = htonl(INADDR_ANY);
-	address.sin_port = htons(0);
+	
+	if(*port != 0)
+		address.sin_port = htons(0);
+	else
+		address.sin_port = htons(*port);
 	
 	if(bind(serverFD, (struct sockaddr *) &address, sizeof(struct sockaddr_in))==-1)
 	{
@@ -402,12 +410,12 @@ int ParsePacket(char* buf, void* result)
 //Checks to see if a child process has terminated and modifies the params as needed
 void CheckChildren(pid_t* children, int* curSize)
 {
+	int origSize = *curSize;
 	int* status = NULL;
 	int itr = 0;
-	int numFinished = 0;
 	pid_t retVal = 0;
 	
-	while(itr < *curSize)
+	while(itr < origSize)
 	{
 		retVal = waitpid(children[itr], status, WNOHANG);
 		if(retVal == -1)
@@ -416,23 +424,31 @@ void CheckChildren(pid_t* children, int* curSize)
 			printf("Errno: %d\n", errno);
 			exit(EXIT_FAILURE);
 		}
-		else if(retVal == 0)
-		{
-			itr++;
-			continue;
-		}
 		else
 		{
 			if(WIFEXITED(status))
 			{
 				printf("Child finished successfully\n");
+				children[itr] = 0;
+					  
+				*curSize = (*curSize) -1;
+				
 			}
 			else
 			{
 				printf("Child died a horrible death\n");
 			}
 		}
+		itr++;
 	}
+	
+	qsort(children, origSize, sizeof(pid_t), compare);
+}
+
+//Comparator function for qsort
+int compare (const void * a, const void * b)
+{
+  return ( *(int*)b - *(int*)a );
 }
 
 
