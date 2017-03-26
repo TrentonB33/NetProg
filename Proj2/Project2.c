@@ -58,12 +58,13 @@ struct ErrorPacket {
 
 int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct Request_Datagram)
 {
+	printf("PENISES    %d\n", type->OpCode);
 	struct DataPacket* data;
 	struct ACKPacket* ack;
 	struct ErrorPacket* err;
-	char FDNE[] = "File Does not Exist";
+	char FDNE[19] = "File Does not Exist";
 	uint16_t port = 0; 
-	int alive = 0;
+	int alive = 1;
 	
 	fd_set readfds;
 	char buf[BufLen];
@@ -85,6 +86,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 	blockNum = 0;
 	tv.tv_sec = 1;
 	bzero(buf, BufLen);
+	perror("Nut\n");
 	if(WR == 1)
 	{
 		// cast buf into tftp struct ACK
@@ -112,19 +114,21 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 		sendto(socketFD, data,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 		//
 	}  else if(WR == 2){
+		printf("Nut2: The Nuttening\n");
 		opCode = 4;
 		fp = fopen(/*buf.FileName*/type->Filename, "r");
 		errsv = errno;
 		if(fp != NULL)
 		{
+			printf("errloop\n");
 			err =  malloc(sizeof(char)*512);
-			err->OpCode = 05;
-			err->ErrCode = 06;
+			err->OpCode = htons(5);
+			err->ErrCode = htons(6);
 			strcpy(err->ErrorMsg, FDNE);
 			sendto(socketFD, err, 512, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
-			free(err);
+			/*free(err);
 			free(type);
-			fclose(fp);
+			fclose(fp);*/
 			return 1;
 		}
 		fp = fopen(type->Filename, "w");
@@ -132,10 +136,12 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 		ack->OpCode = 4;
 		ack->Block = blockNum;
 		sendto(socketFD, ack,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
+		printf("Sent!\n");
 		// cast buf into tftp struct DATAGRAM
 	}
 	while(alive  && timeoutCount<10)
 	{
+		printf("HI!");
 		bzero(buf, BufLen);
 		FD_ZERO(&readfds);
 		FD_SET(socketFD, &readfds);
@@ -144,6 +150,8 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 		{
 			timeoutCount = 0;
 			recvfrom(socketFD, buf, BufLen, 0, (struct sockaddr*) &clientAddr, &addrLen);
+			free(recv);
+			recv  = calloc(1,sizeof(char));
 			opCode = ParsePacket(buf, recv);
 			if(clientAddr.sin_port != dest->sin_port)
 			{
@@ -218,7 +226,8 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			{
 				sendto(socketFD, ack, 4,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 			}
-		}	
+		}
+		timeoutCount++;
 			
 	}
 		
@@ -229,7 +238,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 
 int main (int arc, char** argv)
 {
-	uint16_t port = 0; 	
+	uint16_t port = 48191; 	
 	int socketFD = MakeSocket(&port);
 	
 	printf("%d\n", (int)port);
@@ -249,7 +258,7 @@ int RunServer(int sockFD)
 	char message[MAXSIZE];
 	
 	int opCode = 0;
-	void* result = NULL;
+	void* result = calloc(1, sizeof(char));
 	
 	int maxChildren = 2;
 	int curChildren = 0;
@@ -275,13 +284,15 @@ int RunServer(int sockFD)
 		printf("\n");
 		
 		opCode = ParsePacket(message, result);
-		
+		printf("I'm a child!!   %d\n", ((struct RWPacket*)result)->OpCode);
+		printf("Opcode:  %d\n", opCode);
 		if(opCode < 3)
 		{
 			
 			childID = fork();
 			if(childID == 0)
 			{
+				printf("I'm a child!!   %d\n", ((struct RWPacket*)result)->OpCode);
 				Child_Process (&clientAddr, (struct RWPacket *) result);
 				//remember to pipe to the parent that the process is over, or research
 				//again how the parent knows the child ended.
@@ -359,7 +370,7 @@ int MakeSocket(uint16_t* port)
 // Make sure to cast the reuslt to a pointer to the correct Packet type.
 int ParsePacket(char* buf, void* result)
 {
-	short * opCode = malloc(sizeof(short));
+	short * opCode = calloc(1, sizeof(short));
 	size_t codeLen = 2;
 	struct RWPacket* rw;
 	struct DataPacker* dp;
@@ -367,24 +378,30 @@ int ParsePacket(char* buf, void* result)
 	struct ErrorPacket* ep;
 	char * errMsg;
 	memcpy(opCode, buf, codeLen);
+	*opCode = ntohs(*opCode);
+	//printf("%d    %d", opCode,ntohs(*opCode));
 	if(*opCode == 1 || *opCode == 2)
 	{
-		rw = malloc(sizeof(char)*512);
+		rw = calloc(1, sizeof(char)*512);
 		rw->OpCode = *opCode;
+		printf("%d\n", rw->OpCode);
 		rw->Filename = strdup(buf+2);
-		result = rw;
+		memcpy(result, rw,512);
+		//free(rw);
 		
 	} else if(*opCode == 3)
 	{
 		dp = malloc(sizeof(char)*516);
 		memcpy(dp,buf,516);
-		result = dp;
+		memcpy(result, dp, 516);
+		//free(dp);
 		
 	} else if(*opCode == 4)	
 	{
 		ap = malloc(sizeof(char)*4);
 		memcpy(ap,buf,4);
-		result = ap;
+		memcpy(result, ap, 4);
+		//free(ap);
 		
 	} else if(*opCode == 5)
 	{
@@ -392,9 +409,14 @@ int ParsePacket(char* buf, void* result)
 		memcpy(ep,buf,4);
 		errMsg = strdup(buf+4);
 		strcpy(ep->ErrorMsg, errMsg);
-		result = ep;
+		memcpy(result, ep, 512);
+		//free(ep);
 		
 	}
+	
+	
+	
+	
 	return*opCode;
 }
 
