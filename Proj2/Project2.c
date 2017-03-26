@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #include <time.h>
@@ -23,6 +24,7 @@
 int MakeSocket(uint16_t* port);
 int ParsePacket(char* buf, void* result);
 int RunServer(int sockFD);
+void CheckChildren(pid_t* children, int* curSize);
 
 struct RWPacket {
 	short OpCode;
@@ -98,7 +100,6 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			sendto(socketFD, err, 512, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
 			free(err);
 			free(type);
-			close(pipe_fds);
 			return 1;
 		} //else if(
 		fread(&block, BufLen, 1, fp);
@@ -122,7 +123,6 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			free(err);
 			free(type);
 			fclose(fp);
-			close(pipe_fds);
 			return 1;
 		}
 		fp = fopen(type->Filename, "w");
@@ -234,8 +234,6 @@ int RunServer(int sockFD)
 	pid_t* childProcs = (pid_t*)calloc(maxChildren, sizeof(pid_t));
 	pid_t childID = 0;
 	
-	int tempPipes[2];
-	
 	
 	int running = 1;
 	
@@ -262,7 +260,7 @@ int RunServer(int sockFD)
 			childID = fork();
 			if(childID == 0)
 			{
-				Child_Process (sockFD, (struct RWPacket *) result);
+				Child_Process (&clientAddr, (struct RWPacket *) result);
 				//remember to pipe to the parent that the process is over, or research
 				//again how the parent knows the child ended.
 			}
@@ -283,13 +281,17 @@ int RunServer(int sockFD)
 				childProcs[curChildren] = childID;
 			}
 		}
+		else
+		{
+			//send a 
+		}
+		
+		CheckChildren(childProcs, &curChildren);
 		
 		
 	}
 	
 	return EXIT_SUCCESS;
-	
-	
 }
 
 
@@ -371,6 +373,44 @@ int ParsePacket(char* buf, void* result)
 	}
 	return*opCode;
 }
+
+
+//Checks to see if a child process has terminated and modifies the params as needed
+void CheckChildren(pid_t* children, int* curSize)
+{
+	int* status = NULL;
+	int itr = 0;
+	int numFinished = 0;
+	pid_t retVal = 0;
+	
+	while(itr < *curSize)
+	{
+		retVal = waitpid(children[itr], status, WNOHANG);
+		if(retVal == -1)
+		{
+			printf("waitpid Error\n");
+			printf("Errno: %d\n", errno);
+			exit(EXIT_FAILURE);
+		}
+		else if(retVal == 0)
+		{
+			itr++;
+			continue;
+		}
+		else
+		{
+			if(WIFEXITED(status))
+			{
+				printf("Child finished successfully\n");
+			}
+			else
+			{
+				printf("Child died a horrible death\n");
+			}
+		}
+	}
+}
+
 
 
 
