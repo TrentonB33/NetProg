@@ -37,7 +37,7 @@ struct RWPacket {
 struct DataPacket {
 	short OpCode;
 	short Block;
-	char* Data;
+	char Data[512];
 };
 
 struct ACKPacket {
@@ -48,7 +48,7 @@ struct ACKPacket {
 struct ErrorPacket {
 	short OpCode;
 	short ErrCode;
-	char* ErrorMsg;
+	char ErrorMsg[512];
 };
 
 //WR=0 is a write request WR=1 is a read request
@@ -61,9 +61,9 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 	struct DataPacket* data;
 	struct ACKPacket* ack;
 	struct ErrorPacket* err;
-	
+	char FDNE[] = "File Does not Exist";
 	uint16_t port = 0; 
-	int alive = 1;
+	int alive = 0;
 	
 	fd_set readfds;
 	char buf[BufLen];
@@ -96,7 +96,8 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			err =  malloc(sizeof(char)*512);
 			err->OpCode = 5;
 			err->ErrCode = 1;
-			err->ErrorMsg = "File Does not Exist";
+			//err->ErrorMsg = "File Does not Exist";
+			strcpy(err->ErrorMsg, FDNE);
 			sendto(socketFD, err, 512, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
 			free(err);
 			free(type);
@@ -106,7 +107,8 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 		data = malloc(sizeof(char)*516);
 		data->OpCode = 3;
 		data->Block = blockNum;
-		data->Data = block;
+		//data->Data = block;
+		memcpy(data->Data, block, 512);
 		sendto(socketFD, data,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 		//
 	}  else if(WR == 2){
@@ -118,7 +120,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			err =  malloc(sizeof(char)*512);
 			err->OpCode = 05;
 			err->ErrCode = 06;
-			err->ErrorMsg = "File already exists";
+			strcpy(err->ErrorMsg, FDNE);
 			sendto(socketFD, err, 512, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
 			free(err);
 			free(type);
@@ -126,7 +128,10 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			return 1;
 		}
 		fp = fopen(type->Filename, "w");
-		
+		ack = malloc(sizeof(char)*4);
+		ack->OpCode = 4;
+		ack->Block = blockNum;
+		sendto(socketFD, ack,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 		// cast buf into tftp struct DATAGRAM
 	}
 	while(alive  && timeoutCount<10)
@@ -140,6 +145,15 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			timeoutCount = 0;
 			recvfrom(socketFD, buf, BufLen, 0, (struct sockaddr*) &clientAddr, &addrLen);
 			opCode = ParsePacket(buf, recv);
+			if(clientAddr.sin_port != dest->sin_port)
+			{
+				err =  malloc(sizeof(char)*512);
+				err->OpCode = 05;
+				err->ErrCode = 06;
+				strcpy(err->ErrorMsg, FDNE);
+				sendto(socketFD, err, 512, 0, (struct sockaddr*)&clientAddr, sizeof(struct sockaddr_in));
+				continue;
+			}
 			
 			if(opCode == 3){
 				data = recv;
@@ -150,7 +164,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 					ack = malloc(sizeof(char)*4);
 					ack->OpCode = 4;
 					ack->Block = blockNum;
-					sendto(socketFD, data,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
+					sendto(socketFD, ack, 4,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 					if(written < 512)
 					{
 						free(data);
@@ -181,7 +195,8 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 				data = malloc(sizeof(char)*516);
 				data->OpCode = 3;
 				data->Block = blockNum;
-				data->Data = block;
+				//data->Data = block;
+				memcpy(data->Data, block, 512);
 				written = sendto(socketFD, data,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 				blockNum++;
 				
@@ -195,8 +210,15 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 				return 1;
 			}
 				
-		}
-			
+		} else {
+			if(WR == 1)
+			{
+				sendto(socketFD, data,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
+			} else if(WR == 2)
+			{
+				sendto(socketFD, ack, 4,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
+			}
+		}	
 			
 	}
 		
@@ -343,6 +365,7 @@ int ParsePacket(char* buf, void* result)
 	struct DataPacker* dp;
 	struct ACKPacket* ap;
 	struct ErrorPacket* ep;
+	char * errMsg;
 	memcpy(opCode, buf, codeLen);
 	if(*opCode == 1 || *opCode == 2)
 	{
@@ -367,7 +390,8 @@ int ParsePacket(char* buf, void* result)
 	{
 		ep = malloc(sizeof(char)*512);
 		memcpy(ep,buf,4);
-		ep->ErrorMsg = strdup(buf+4);
+		errMsg = strdup(buf+4);
+		strcpy(ep->ErrorMsg, errMsg);
 		result = ep;
 		
 	}
