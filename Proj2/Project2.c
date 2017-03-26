@@ -26,6 +26,7 @@ int ParsePacket(char* buf, void* result);
 int RunServer(int sockFD);
 void CheckChildren(pid_t* children, int* curSize);
 int compare (const void * a, const void * b);
+void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* dest);
 
 
 struct RWPacket {
@@ -157,7 +158,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			opCode = ParsePacket(buf, recv);
 			if(clientAddr.sin_port != dest->sin_port)
 			{
-				err =  malloc(sizeof(char)*512);
+				err =  malloc(sizeof(char)*512); //this needs to be 516 bytes long
 				err->OpCode = 05;
 				err->ErrCode = 06;
 				strcpy(err->ErrorMsg, FDNE);
@@ -317,7 +318,9 @@ int RunServer(int sockFD)
 		}
 		else
 		{
-			//send a 
+			SendErrorPacket(sockFD, 0, 
+				"Cannot send requests other than read and write to the server.",
+				clientAddr);
 		}
 		
 		CheckChildren(childProcs, &curChildren);
@@ -471,6 +474,24 @@ int compare (const void * a, const void * b)
 {
   return ( *(int*)b - *(int*)a );
 }
+
+//Send an error packet
+void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* dest)
+{
+	struct ErrorPacket* err;
+	
+	err =  (struct ErrorPacket*)calloc(1,sizeof(struct ErrorPacket));
+	err->OpCode = htons(5);
+	err->ErrCode = htons(6);
+	strcpy(err->ErrorMsg, message);
+	sendto(socketFD, err, MAXSIZE, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
+	
+}
+
+
+
+
+
 
 
 
