@@ -60,7 +60,7 @@ struct ErrorPacket {
 
 int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct Request_Datagram)
 {
-	printf("PENISES    %d\n", type->OpCode);
+	printf("PENISES    %d\n", ntohs(dest->sin_port));
 	struct DataPacket* data;
 	struct ACKPacket* ack;
 	struct ErrorPacket* err;
@@ -254,7 +254,7 @@ int main (int arc, char** argv)
 int RunServer(int sockFD)
 {
 	struct sockaddr_in* clientAddr = (struct sockaddr_in*)calloc(1,sizeof(struct sockaddr_in));
-	socklen_t addrLen = 0;
+	socklen_t addrLen = sizeof(struct sockaddr_in);
 	
 	int amtRead = 0;
 	char message[MAXSIZE];
@@ -272,9 +272,9 @@ int RunServer(int sockFD)
 	
 	while(running)
 	{
-		
+				
 		bzero(message, MAXSIZE);
-		bzero(&clientAddr, sizeof(struct sockaddr_in));
+		bzero(clientAddr, sizeof(struct sockaddr_in));
 
 		amtRead = recvfrom(sockFD, message, MAXSIZE, 0, (struct sockaddr *) clientAddr, &addrLen);
 
@@ -286,7 +286,6 @@ int RunServer(int sockFD)
 		printf("\n");
 		
 		opCode = ParsePacket(message, result);
-		printf("I'm a child!!   %d\n", ((struct RWPacket*)result)->OpCode);
 		printf("Opcode:  %d\n", opCode);
 		if(opCode < 3)
 		{
