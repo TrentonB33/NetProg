@@ -61,11 +61,10 @@ struct ErrorPacket {
 
 int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct Request_Datagram)
 {
-	//printf("PENISES    %d\n", ntohs(dest->sin_port));
 	struct DataPacket* data;
 	struct ACKPacket* ack = malloc(sizeof(char)*4);;
 	struct ErrorPacket* err;
-	char FDNE[19] = "File Does not Exist";
+	char FDNE[] = "File Does not Exist\0";
 	char FAE[] = "File Already Exists";
 	uint16_t port = 0; 
 	int alive = 1;
@@ -90,7 +89,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 	blockNum = 0;
 	tv.tv_sec = 1;
 	bzero(buf, BufLen);
-	perror("Nut\n");
+	//perror("Nut\n");
 	if(WR == 1)
 	{
 		// cast buf into tftp struct ACK
@@ -106,8 +105,8 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			//err->ErrorMsg = "File Does not Exist";
 			strcpy(err->ErrorMsg, FDNE);
 			sendto(socketFD, err, 512, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
-			free(err);
-			free(type);
+			//free(err);
+			//free(type);
 			return 1;
 		} //else if(
 		read = fread(&block, 1, BufLen, fp);
@@ -121,13 +120,12 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 		blockNum++;
 		//
 	}  else if(WR == 2){
-		//printf("Nut2: The Nuttening\n");
 		opCode = 4;
 		fp = fopen(/*buf.FileName*/type->Filename, "r");
 		errsv = errno;
 		if(fp != NULL)
 		{
-			printf("errloop\n");
+			//printf("errloop\n");
 			err =  malloc(sizeof(char)*512);
 			err->OpCode = htons(5);
 			err->ErrCode = htons(6);
@@ -143,14 +141,14 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 		ack->OpCode = htons(4);
 		ack->Block = htons(blockNum);
 		sendto(socketFD, ack,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
-		printf("Sent!\n");
+		//printf("Sent!\n");
 		blockNum = 1;
 		// cast buf into tftp struct DATAGRAM
 	}
-	while(alive  && timeoutCount<10)
+	while(alive  && timeoutCount<11)
 	{
-		usleep(10);
-		printf("HI! %d, %d\n", timeoutCount, blockNum);
+		//usleep(10);
+		//printf("HI! %d, %d\n", timeoutCount, blockNum);
 		bzero(buf, BufLen);
 		FD_ZERO(&readfds);
 		FD_SET(socketFD, &readfds);
@@ -193,12 +191,12 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 					if(written < 512)
 					{
 						//printf("dead\n");
-						free(data);
+						/*free(data);
 						free(ack);
 						fclose(fp);
 						close(socketFD);
 						free(dest);
-						free(type);
+						free(type);*/
 						return 0;
 					}
 					blockNum++;
@@ -261,7 +259,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 
 int main (int arc, char** argv)
 {
-	uint16_t port = 48191; 	
+	uint16_t port = 0; 	
 	int socketFD = MakeSocket(&port);
 	
 	printf("%d\n", (int)port);
@@ -299,22 +297,22 @@ int RunServer(int sockFD)
 
 		amtRead = recvfrom(sockFD, message, MAXSIZE, 0, (struct sockaddr *) clientAddr, &addrLen);
 
-		printf("Got a message from: %d:%d\n", ntohl(clientAddr->sin_addr.s_addr), 
-			   ntohs(clientAddr->sin_port));
+		//printf("Got a message from: %d:%d\n", ntohl(clientAddr->sin_addr.s_addr), 
+		//	   ntohs(clientAddr->sin_port));
 
-		printf("Size: %d\n", amtRead);
-		write(1, message, amtRead);
-		printf("\n");
+		//printf("Size: %d\n", amtRead);
+		//write(1, message, amtRead);
+		//printf("\n");
 		
 		opCode = ParsePacket(message, result);
-		printf("Opcode:  %d\n", opCode);
+		//printf("Opcode:  %d\n", opCode);
 		if(opCode < 3)
 		{
 			
 			childID = fork();
 			if(childID == 0)
 			{
-				printf("I'm a child!!   %d\n", ((struct RWPacket*)result)->OpCode);
+				//printf("I'm a child!!   %d\n", ((struct RWPacket*)result)->OpCode);
 				Child_Process (clientAddr, (struct RWPacket *) result);
 				//remember to pipe to the parent that the process is over, or research
 				//again how the parent knows the child ended.
@@ -389,6 +387,8 @@ int MakeSocket(uint16_t* port)
 	if(getsockname(serverFD, (struct sockaddr*)&tempAdr, &tempsize))
 	{
 		printf("getsockname() broke\n");
+		printf("Errno: %d\n", errno);
+		exit(EXIT_FAILURE);
 	}
 	
 	*port = ntohs(tempAdr.sin_port);
@@ -473,7 +473,7 @@ void CheckChildren(pid_t* children, int* curSize)
 		{
 			if(WIFEXITED(status))
 			{
-				printf("Child finished successfully\n");
+				//printf("Child finished successfully\n");
 				children[itr] = 0;
 					  
 				*curSize = (*curSize) -1;
@@ -481,13 +481,13 @@ void CheckChildren(pid_t* children, int* curSize)
 			}
 			else
 			{
-				printf("Child died a horrible death\n");
+				//printf("Child died a horrible death\n");
 			}
 		}
 		itr++;
 	}
 	
-	printf("Current Size: %d\n", *curSize);
+	//printf("Current Size: %d\n", *curSize);
 	qsort(children, origSize, sizeof(pid_t), compare);
 }
 
@@ -504,7 +504,7 @@ void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* de
 	
 	err =  (struct ErrorPacket*)calloc(1,sizeof(struct ErrorPacket));
 	err->OpCode = htons(5);
-	err->ErrCode = htons(6);
+	err->ErrCode = htons(EC);
 	strcpy(err->ErrorMsg, message);
 	sendto(socketFD, err, MAXSIZE, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
 	
