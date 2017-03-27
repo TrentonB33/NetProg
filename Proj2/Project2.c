@@ -26,6 +26,7 @@ short ParsePacket(char* buf, void* result);
 int RunServer(int sockFD);
 void CheckChildren(pid_t* children, int* curSize);
 int compare (const void * a, const void * b);
+void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* dest);
 
 
 struct RWPacket {
@@ -148,7 +149,8 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 	}
 	while(alive  && timeoutCount<10)
 	{
-		//printf("HI! %d, %d\n", timeoutCount, blockNum);
+		usleep(10);
+		printf("HI! %d, %d\n", timeoutCount, blockNum);
 		bzero(buf, BufLen);
 		FD_ZERO(&readfds);
 		FD_SET(socketFD, &readfds);
@@ -233,6 +235,10 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 				free(type);
 				close(socketFD);
 				return 1;
+			} else {
+				
+				SendErrorPacket(socketFD, 4, "Unknown TFTP operation", dest);
+				
 			}
 				
 		} else {
@@ -332,7 +338,9 @@ int RunServer(int sockFD)
 		}
 		else
 		{
-			//send a 
+			SendErrorPacket(sockFD, 0, 
+				"Cannot send requests other than read and write to the server.",
+				clientAddr);
 		}
 		
 		CheckChildren(childProcs, &curChildren);
@@ -479,6 +487,7 @@ void CheckChildren(pid_t* children, int* curSize)
 		itr++;
 	}
 	
+	printf("Current Size: %d\n", *curSize);
 	qsort(children, origSize, sizeof(pid_t), compare);
 }
 
@@ -487,6 +496,24 @@ int compare (const void * a, const void * b)
 {
   return ( *(int*)b - *(int*)a );
 }
+
+//Send an error packet
+void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* dest)
+{
+	struct ErrorPacket* err;
+	
+	err =  (struct ErrorPacket*)calloc(1,sizeof(struct ErrorPacket));
+	err->OpCode = htons(5);
+	err->ErrCode = htons(6);
+	strcpy(err->ErrorMsg, message);
+	sendto(socketFD, err, MAXSIZE, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
+	
+}
+
+
+
+
+
 
 
 
