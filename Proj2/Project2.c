@@ -152,6 +152,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 		bzero(buf, BufLen);
 		FD_ZERO(&readfds);
 		FD_SET(socketFD, &readfds);
+		tv.tv_sec = 1;
 		result = select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
 		//printf("maybe\n");
 		if(result>0 || blockNum == 0)
