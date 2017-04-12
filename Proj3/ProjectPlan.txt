@@ -1,0 +1,18 @@
+constructs wheel from previous ranges primes
+
+so *cough* after each rank gets done with their wheel, send back possible prime numbers to master rank, which then sieves with all primes to check primeness, then sends new wheel out to each rank
+
+
+
+1. rank 1 finds primes 2-10
+
+2. builds wheel
+3. Broadcasts to other ranks who are waiting
+
+4. ranks split up next range and sieve using wheel
+
+5. pass sieved range (found suspected primes) back to rank 1
+
+6. rank 1 sieves received primes
+7. constructs new wheel and passes out to other ranks
+8. repeat 4-7 until the END OF TIME
