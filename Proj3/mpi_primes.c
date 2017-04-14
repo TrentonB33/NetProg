@@ -18,7 +18,7 @@ int* GetRankVals();
 
 //Worker Rank functions
 int GetWheel(struct Wheel* toPopulate);
-int SendVals(int* vals);
+int SendVals(int* vals, int numVals);
 
 
 int end_now = 0;
@@ -102,6 +102,66 @@ void Add_To_Int_Array(int* array, int arraySize, int entries)
 }
 
 
+
+
+
+/***********************************
+*  COMMUNICATION FUNCTIONS
+***********************************/
+
+//MAIN RANK FUNCTIONS
+
+/********** BroadcastWheel ***********
+Params: struct Wheel wheel
+Returns: 0 if successful, or an error code otherwise
+
+BroadcastWheel takes a wheel to broadcast and sends that wheel to all the
+Worker Ranks. Nothing else special is done.
+*/
+
+int BroadcastWheel(struct Wheel* wheel)
+{
+	return 0;
+}
+
+/********** GetRankVals ***********
+Params: none
+Returns: An array of integer values that have been received from the worker ranks
+
+GetRankVals waits for worker ranks to send their possible prime number to the main rank
+and then combines these values.  It then returns this complete array to the caller.
+Order from least to greatest is assured.
+*/
+int* GetRankVals()
+{
+	return 0;
+}
+
+//WORKER RANK FUNCTIONS
+
+/********** GetWheel ***********
+Params: struct Wheel toPopulate
+Returns: 0 if successful, or an error code otherwise
+
+GetWheel expects a wheel struct, which it then populates with the wheel data
+That is received from the main rank
+*/
+int GetWheel(struct Wheel* toPopulate)
+{
+	return 0;
+}
+
+/********** SendVals ***********
+Params: int* vals, int numVals
+Returns: 0 if successful, or an error code otherwise
+
+SendVals expects an array of integers ordered from least to greatest, and the number of
+elements in that array.  it send this array to the main rank.
+*/
+int SendVals(int* vals, int numVals)
+{
+	return 0;
+}
 
 
 
