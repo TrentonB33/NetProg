@@ -7,8 +7,9 @@
 struct Wheel {
 	int wheel_size;
 	int entries;
-	int** arr;	
-}
+	int maxPrimes;
+	int* arr;	
+};
 
 //Function declarations
 //Main Rank functions
@@ -29,7 +30,7 @@ void sig_handler(int signo)
     }
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     int count, id;
     
@@ -56,12 +57,11 @@ int main(int argc, char **argv)
 
 **/
 
-int[] Wheel_Factorize(int _start, int _end, Wheel* wheel)
+int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel)
 {
 	int start = _start;
 	int end = _end;
 	int x = 0, arrsize = 10, entries = 0;
-	int 
 	if(start%2==0)
 	{
 		start--;
@@ -80,9 +80,25 @@ int[] Wheel_Factorize(int _start, int _end, Wheel* wheel)
 	return NULL;
 }
 
-void Add_To_Int_Array(int** array, int arraySize, int entries)
+void Add_To_Wheel(struct Wheel* wheel, int item)
 {
-	
+	if(wheel->maxPrimes == 0)
+	{
+		Add_To_Int_Array(wheel->arr, wheel->wheel_size, wheel->entries);		
+	} else if (wheel->entries == wheel->maxPrimes)
+	{
+		return;
+	} else {
+		Add_To_Int_Array(wheel->arr, wheel->wheel_size, wheel->entries);
+	}
+}
+
+void Add_To_Int_Array(int* array, int arraySize, int entries)
+{
+	if(entries==arraySize-2)
+	{
+		
+	}
 }
 
 
