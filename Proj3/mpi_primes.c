@@ -10,6 +10,15 @@ struct Wheel {
 	int** arr;	
 }
 
+//Function declarations
+//Main Rank functions
+int BroadcastWheel(struct Wheel* wheel);
+int* GetRankVals();
+
+//Worker Rank functions
+int GetWheel(struct Wheel* toPopulate);
+int SendVals(int* vals);
+
 
 int end_now = 0;
 
