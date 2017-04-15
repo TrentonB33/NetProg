@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <signal.h>
 
 struct Wheel {
@@ -75,20 +76,26 @@ void Add_To_Wheel(struct Wheel* wheel, int item)
 {
 	if(wheel->maxPrimes == 0)
 	{
-		Add_To_Int_Array(wheel->arr, wheel->wheel_size, wheel->entries);		
+		Add_To_Int_Array(wheel->arr, &wheel->wheel_size, &wheel->entries, item);
 	} else if (wheel->entries == wheel->maxPrimes)
 	{
 		return;
 	} else {
-		Add_To_Int_Array(wheel->arr, wheel->wheel_size, wheel->entries);
+		Add_To_Int_Array(wheel->arr, &wheel->wheel_size, &wheel->entries, item);
 	}
 }
 
-void Add_To_Int_Array(int* array, int arraySize, int entries)
+void Add_To_Int_Array(int* array, int* arraySize, int* entries, int item)
 {
-	if(entries==arraySize-2)
+	if(*entries==*arraySize-2)
 	{
-		
+		array = realloc(array, sizeof(int)*(*arraySize) * 2);
+		*arraySize = *arraySize*2;
+		array[*entries+1] = item;
+		*entries++;
+	} else {
+		array[*entries+1] = item;
+		*entries++;
 	}
 }
 
