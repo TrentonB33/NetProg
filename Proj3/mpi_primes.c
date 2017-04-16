@@ -33,6 +33,9 @@ int Wheel_Factorize(int _start, int _end, struct Wheel* wheel);
 //Helper Functions
 void PrintArray(int* array, int num);
 
+//Testing Functions
+void TrentonTesting();
+
 
 
 int end_now = 0;
@@ -68,6 +71,8 @@ int main(int argc, char** argv)
 	count = Wheel_Factorize(3, 99, wheel);
 	
 	printf("%d\n", count);
+	
+	TrentonTesting();
 	
 
     /*while (1) {
@@ -245,14 +250,14 @@ int GetRankVals(int* vals, int numVals, int** toPopulate)
 	
 	int itr;
 	int totalMembers = numVals;
-	int** partials = (int**) calloc(count, sizeof(int*));
-	int counts[count];
+	int** partials = (int**) calloc(worldSize, sizeof(int*));
+	int counts[worldSize];
 	counts[0] = numVals;
 		
 	//printf("Rank %d: Entering the receiving Proc.\n", id);
 	
 	//PrintArray(vals,numVals);
-	for(itr = 1; itr < count; itr++)
+	for(itr = 1; itr < worldSize; itr++)
 	{
 		partials[itr] = (int*)calloc(1, sizeof(int));
 		counts[itr] = GetValuesFromWoker(itr, &partials[itr]);
@@ -271,11 +276,11 @@ int GetRankVals(int* vals, int numVals, int** toPopulate)
 	
 	//PrintArray(*toPopulate, numVals);
 	
-	//printf("Rank %d: Have the first vals Count %d.\n", id, count);
+	//printf("Rank %d: Have the first vals Count %d.\n", id, worldSize);
 	
 	int offset = 0;
 	
-	for(itr = 1; itr < count; itr++)
+	for(itr = 1; itr < worldSize; itr++)
 	{
 		offset += counts[itr-1];
 		memcpy(*toPopulate + offset, partials[itr], counts[itr]*sizeof(int));
@@ -350,7 +355,7 @@ int GetWheel(struct Wheel* toPopulate)
 	toPopulate->maxPrimes = buffer[2];
 	
 	toPopulate->arr = (int*) calloc(toPopulate->entries, sizeof(int));
-	memcpy(toPopulate->arr, buffer+numIntInWheel*sizeof(int), toPopulate->entries*sizeof(int));
+	memcpy(toPopulate->arr, buffer+numIntInWheel, toPopulate->entries*sizeof(int));
 	
 	PrintArray(buffer, size);
 	
@@ -400,6 +405,31 @@ void PrintArray(int* array, int num)
 	printf("\n");
 }
 
+//Testing Functions
+void TrentonTesting()
+{
+	
+	int size = (id + 1) * 5;
+	int buffer[size];
+	int itr;
+	
+	for(itr = 0; itr < size; itr++)
+	{
+		buffer[itr] = itr;
+	}
+	
+	if(id == 0)
+	{
+		int* allVals = (int*)calloc(1,sizeof(int));
+		int count = GetRankVals(buffer, size, &allVals);
+		PrintArray(allVals, count);
+	}
+	else
+	{
+		SendVals(buffer, size);
+	}
+	
+}
 
 
 
