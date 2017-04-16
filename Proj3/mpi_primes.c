@@ -282,7 +282,7 @@ int BroadcastWheel(struct Wheel* wheel)
     int root, MPI_Comm comm, MPI_Request *request)*/
 	
 	MPI_Request res1, res2;
-	MPI_Status stat1, stat2;
+	//MPI_Status stat1, stat2;
 	
 	int numIntInWheel = 3;
 	
@@ -295,14 +295,22 @@ int BroadcastWheel(struct Wheel* wheel)
 	
 	memcpy(buffer+numIntInWheel, wheel->arr, sizeof(int)*wheel->entries);
 	
-	MPI_Ibcast(&size, 1, MPI_UNSIGNED,
+	int itr;
+	
+	for(itr = 0; itr < worldSize; itr++)
+	{
+		MPI_Isend(&size, 1, MPI_UNSIGNED, itr, 0, MPI_COMM_WORLD, &res1);
+	
+		MPI_Isend(buffer, size, MPI_UNSIGNED,itr, 0, MPI_COMM_WORLD, &res2);
+	}
+	/*MPI_Ibcast(&size, 1, MPI_UNSIGNED,
     		0, MPI_COMM_WORLD, &res1);
 	
 	MPI_Ibcast(buffer, size, MPI_UNSIGNED,
     		0, MPI_COMM_WORLD, &res2);
 	
 	MPI_Wait(&res1, &stat1);
-	MPI_Wait(&res2, &stat2);
+	MPI_Wait(&res2, &stat2);*/
 	
 	//PrintArray(buffer, size);
 	
@@ -327,30 +335,17 @@ int GetRankVals(int* vals, int numVals, int** toPopulate)
 	int** partials = (int**) calloc(worldSize, sizeof(int*));
 	int counts[worldSize];
 	counts[0] = numVals;
-		
-	//printf("Rank %d: Entering the receiving Proc.\n", id);
-	
-	//PrintArray(vals,numVals);
+
 	for(itr = 1; itr < worldSize; itr++)
 	{
 		partials[itr] = (int*)calloc(1, sizeof(int));
 		counts[itr] = GetValuesFromWoker(itr, &partials[itr]);
 		totalMembers += counts[itr];
-		//PrintArray(partials[itr], counts[itr]);
 	}
 	
-	/*printf("Rank %d: Should have all the vals.\n", id);
-	PrintArray(counts, count);
-	printf("Rank %d: totalMembers %d.\n", id, totalMembers);*/
-	
-	
 	*toPopulate = (int*) calloc(totalMembers, sizeof(int));
-	//PrintArray(vals,numVals);
+
 	memcpy(*toPopulate, vals, numVals*sizeof(int));
-	
-	//PrintArray(*toPopulate, numVals);
-	
-	//printf("Rank %d: Have the first vals Count %d.\n", id, worldSize);
 	
 	int offset = 0;
 	
@@ -360,8 +355,6 @@ int GetRankVals(int* vals, int numVals, int** toPopulate)
 		memcpy(*toPopulate + offset, partials[itr], counts[itr]*sizeof(int));
 		
 	}
-	
-	//printf("Rank %d: Exiting the receiving Proc.\n", id);
 	
 	return totalMembers;
 }
@@ -409,20 +402,32 @@ int GetWheel(struct Wheel* toPopulate)
 	int size = 0;
 	int numIntInWheel = 3;
 	
-	MPI_Ibcast(&size, 1, MPI_UNSIGNED,
+	MPI_Irecv(&size, 1, MPI_UNSIGNED, 0, MPI_ANY_TAG,
+    		MPI_COMM_WORLD, &res1);
+	
+	MPI_Wait(&res1, &stat1);
+	
+	int buffer[size];
+	
+	MPI_Irecv(buffer, size, MPI_UNSIGNED, 0, MPI_ANY_TAG,
+    		MPI_COMM_WORLD, &res2);
+	
+	MPI_Wait(&res2, &stat2);
+	
+	/*MPI_Ibcast(&size, 1, MPI_UNSIGNED,
     		0, MPI_COMM_WORLD, &res1);
 	
 	MPI_Wait(&res1, &stat1);
 	
-	/*printf("Worker made it past the INIT!\n");
-	scanf("\n");*/
+	printf("Worker made it past the INIT!\n");
+	scanf("\n");
 	
 	int buffer[size];
 	
 	MPI_Ibcast(buffer, size, MPI_UNSIGNED,
     		0, MPI_COMM_WORLD, &res2);
 	
-	MPI_Wait(&res2, &stat2);
+	MPI_Wait(&res2, &stat2);*/
 	
 	toPopulate->wheel_size = buffer[0];
 	toPopulate->entries = buffer[1];
