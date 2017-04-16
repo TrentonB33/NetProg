@@ -27,7 +27,7 @@ int SendVals(int* vals, int numVals);
 
 //Array Managment
 int Add_To_Int_Array(int** array, int arraySize, int entries, int item);
-void Add_To_Wheel(struct Wheel* wheel, int item);
+void Add_To_Wheel(struct Wheel* wheel, int* items, int numToAdd);
 int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count);
 
 //Helper Functions
@@ -168,19 +168,18 @@ int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count)
 	return output;
 }
 
-void Add_To_Wheel(struct Wheel* wheel, int item)
+void Add_To_Wheel(struct Wheel* wheel, int* items, int numToAdd)
 {
-	if(wheel->maxPrimes == 0)
-	{
-		wheel->wheel_size = Add_To_Int_Array(&wheel->arr, wheel->wheel_size, wheel->entries, item);
-		wheel->entries++;
-	} else if (wheel->entries >= wheel->maxPrimes)
-	{
-		return;
-	} else {
-		wheel->wheel_size = Add_To_Int_Array(&wheel->arr, wheel->wheel_size, wheel->entries, item);
-		wheel->entries++;
-	}
+	int totalSize = wheel->entries + numToAdd;
+	int* newList = (int*)calloc(totalSize, sizeof(int));
+	
+	memcpy(newList, wheel->arr, wheel->entries*sizeof(int));
+	memcpy(newList + wheel->entries, items, numToAdd*sizeof(int));
+	
+	wheel->arr = newList;
+	wheel->entries = totalSize;
+	wheel->wheel_size = totalSize;
+	
 }
 
 int Add_To_Int_Array(int** array, int arraySize, int entries, int item)
@@ -426,7 +425,29 @@ void PrintArray(int* array, int num)
 void TrentonTesting()
 {
 	
-	int size = (id + 1) * 5;
+	/*struct Wheel* wheel = calloc(1, sizeof(struct Wheel));
+	wheel->arr = calloc(10, sizeof(int));
+	wheel->entries = 4;
+	wheel->wheel_size = 10;
+	wheel->arr[0] = 2;
+	wheel->arr[1] = 3;
+	wheel->arr[2] = 5;
+	wheel->arr[3] = 7;
+	
+	int buffer[10];
+	int itr;
+	
+	for(itr = 0; itr < 10; itr++)
+	{
+		buffer[itr] = itr*10;
+	}
+	
+	Add_To_Wheel(wheel, buffer, 10);
+	
+	PrintArray(wheel->arr, wheel->entries);*/
+	
+	
+	/*int size = (id + 1) * 5;
 	int buffer[size];
 	int itr;
 	
@@ -444,7 +465,7 @@ void TrentonTesting()
 	else
 	{
 		SendVals(buffer, size);
-	}
+	}*/
 	
 }
 
