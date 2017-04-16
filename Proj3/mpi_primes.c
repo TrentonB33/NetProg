@@ -24,12 +24,19 @@ int GetValuesFromWoker(int rank, int** toPopulate);
 int GetWheel(struct Wheel* toPopulate);
 int SendVals(int* vals, int numVals);
 
+
+//Array Managment
+int Add_To_Int_Array(int** array, int arraySize, int entries, int item);
+void Add_To_Wheel(struct Wheel* wheel, int item);
+int Wheel_Factorize(int _start, int _end, struct Wheel* wheel);
+
 //Helper Functions
 void PrintArray(int* array, int num);
 
 
+
 int end_now = 0;
-int count, id;
+int worldSize, id;
 
 void sig_handler(int signo)
 {
@@ -40,44 +47,37 @@ void sig_handler(int signo)
 
 int main(int argc, char** argv)
 {
-    
-    MPI_Init(&argc, &argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &count);
+
+	MPI_Init(&argc, &argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
     MPI_Comm_rank(MPI_COMM_WORLD, &id);
 	
     
     signal(SIGUSR1, sig_handler);
 	
-	int num = (id+1)*5;
+    int count = 0;
+	struct Wheel* wheel = calloc(1, sizeof(struct Wheel));
+    wheel->arr = calloc(10, sizeof(int));
+	wheel->entries = 4;
+	wheel->wheel_size = 10;
+	wheel->arr[0] = 2;
+	wheel->arr[1] = 3;
+	wheel->arr[2] = 5;
+	wheel->arr[3] = 7;
+	printf("%d\n", wheel->entries);
+	count = Wheel_Factorize(3, 99, wheel);
 	
-	int myVals[num];
-	int itr;
+	printf("%d\n", count);
+	
 
-	for(itr = 0; itr < num; itr++)
-	{
-		myVals[itr] = itr;
-	}
-	
-	if(id == 0)
-	{
-		int* vals = (int*)calloc(1, sizeof(int));
-		int count = GetRankVals(myVals, num, &vals);
-		
-		PrintArray(vals, count);
-	} else
-	{
-		
-		SendVals(myVals, num);
-		
-	}
-    
-    while (1) {
+    /*while (1) {
 		end_now = 1;
         if (end_now == 1) {
             break;
         }
-    }
-    
+    }*/
+	
+	
     MPI_Finalize();
     
     return 0;
@@ -89,54 +89,94 @@ int main(int argc, char** argv)
 
 **/
 
-int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel)
+int Wheel_Factorize(int _start, int _end, struct Wheel* wheel)
 {
 	int start = _start;
 	int end = _end;
-	int x = 0, arrsize = 10, entries = 0;
+	int x = 0, arrsize = 10, y = 0, flag = 0, count = 0;
+	int* output = calloc(arrsize, sizeof(int));
 	if(start%2==0)
 	{
+		printf("huh %d", start);
 		start--;
 	}
 	if(end%2==0)
 	{
 		end++;
 	}
-	while(x<=end)
+	printf("%d\n", wheel->entries);
+	while(start<=end)
 	{
-		for(x=0; x<wheel->entries;x++)
+		printf("\nduh  %d", start);
+		for(y = 0; y < wheel->entries; y++)
 		{
-			
+			if(start%wheel->arr[y] == 0)
+			{
+				printf(" dumb \n");
+				flag = -1;
+				break;
+			} else {
+				printf(" dooh   ");
+				flag = 1;
+			}
 		}
+		
+		if(flag == 1)
+		{
+			printf("output pointer value: %li\n", (long int) output);
+			arrsize = Add_To_Int_Array(&output, arrsize, count, start);\
+			printf("output pointer value (after): %li\n", (long int) output);
+			printf("%d\n",count);
+			for(x=0; x<count;x++)
+			{
+				printf("%d : ", output[x]);
+			}
+			printf("\n");
+			count++;
+		}
+		
+		start+=2;
 	}
-	return NULL;
+	
+	for(x=0; x<count;x++)
+	{
+		printf("%d   %d\n", x, output[x]);
+	}
+	
+	return count;
 }
 
 void Add_To_Wheel(struct Wheel* wheel, int item)
 {
 	if(wheel->maxPrimes == 0)
 	{
-		Add_To_Int_Array(wheel->arr, &wheel->wheel_size, &wheel->entries, item);
-	} else if (wheel->entries == wheel->maxPrimes)
+		wheel->wheel_size = Add_To_Int_Array(&wheel->arr, wheel->wheel_size, wheel->entries, item);
+		wheel->entries++;
+	} else if (wheel->entries >= wheel->maxPrimes)
 	{
 		return;
 	} else {
-		Add_To_Int_Array(wheel->arr, &wheel->wheel_size, &wheel->entries, item);
+		wheel->wheel_size = Add_To_Int_Array(&wheel->arr, wheel->wheel_size, wheel->entries, item);
+		wheel->entries++;
 	}
 }
 
-void Add_To_Int_Array(int* array, int* arraySize, int* entries, int item)
+int Add_To_Int_Array(int** array, int arraySize, int entries, int item)
 {
-	if(*entries==*arraySize-2)
+	if(entries>=arraySize-2)
 	{
-		array = realloc(array, sizeof(int)*(*arraySize) * 2);
-		*arraySize = *arraySize*2;
-		array[*entries+1] = item;
-		*entries++;
+		printf("Faggots ");
+		arraySize = arraySize*2;
+		printf("Array before realloc: %li\n", (long int) array);
+		*array = realloc(*array, sizeof(int) * arraySize);
+		printf("Array after realloc: %li\n", (long int) array);
+		(*array)[entries] = item;
+		//entries++;
 	} else {
-		array[*entries+1] = item;
-		*entries++;
+		(*array)[entries] = item;
+		//entries++;
 	}
+	return arraySize;
 }
 
 
@@ -144,12 +184,12 @@ void Add_To_Int_Array(int* array, int* arraySize, int* entries, int item)
 
 
 /***********************************
-*  COMMUNICATION FUNCTIONS
+*  COMMUNICATION FUNCTIONS		   *
 ***********************************/
 
 //MAIN RANK FUNCTIONS
 
-/********** BroadcastWheel ***********
+/********** BroadcastWheel **********
 Params: struct Wheel wheel
 Returns: 0 if successful, or an error code otherwise
 
@@ -189,6 +229,7 @@ int BroadcastWheel(struct Wheel* wheel)
 	
 	return 0;
 }
+
 
 /********** GetRankVals ***********
 Params: int* vals, int numVals, int** toPopulate
@@ -274,7 +315,7 @@ int GetValuesFromWoker(int rank, int** toPopulate)
 
 //WORKER RANK FUNCTIONS
 
-/********** GetWheel ***********
+/********** GetWheel **********
 Params: struct Wheel toPopulate
 Returns: 0 if successful, or an error code otherwise
 
@@ -316,7 +357,7 @@ int GetWheel(struct Wheel* toPopulate)
 	return 0;
 }
 
-/********** SendVals ***********
+/********** SendVals **********
 Params: int* vals, int numVals
 Returns: 0 if successful, or an error code otherwise
 
