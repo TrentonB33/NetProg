@@ -17,7 +17,8 @@ struct Wheel {
 //Function declarations
 //Main Rank functions
 int BroadcastWheel(struct Wheel* wheel);
-int* GetRankVals();
+int GetRankVals(int* vals, int numVals, int** toPopulate);
+int GetValuesFromWoker(int rank, int** toPopulate);
 
 //Worker Rank functions
 int GetWheel(struct Wheel* toPopulate);
@@ -46,6 +47,29 @@ int main(int argc, char** argv)
 	
     
     signal(SIGUSR1, sig_handler);
+	
+	int num = (id+1)*5;
+	
+	int myVals[num];
+	int itr;
+
+	for(itr = 0; itr < num; itr++)
+	{
+		myVals[itr] = itr;
+	}
+	
+	if(id == 0)
+	{
+		int* vals = (int*)calloc(1, sizeof(int));
+		int count = GetRankVals(myVals, num, &vals);
+		
+		PrintArray(vals, count);
+	} else
+	{
+		
+		SendVals(myVals, num);
+		
+	}
     
     while (1) {
 		end_now = 1;
@@ -167,16 +191,85 @@ int BroadcastWheel(struct Wheel* wheel)
 }
 
 /********** GetRankVals ***********
-Params: none
-Returns: An array of integer values that have been received from the worker ranks
+Params: int* vals, int numVals, int** toPopulate
+Returns: The number of elements in toPopulate
 
 GetRankVals waits for worker ranks to send their possible prime number to the main rank
-and then combines these values.  It then returns this complete array to the caller.
-Order from least to greatest is assured.
+and then combines these values.  It combines these values with the values passed in with vals
+It then puts the combined array into toPopulate and returns the number of elements 
+that have been put into toPopulate. Order from least to greatest is assured in toPopulate.
 */
-int* GetRankVals()
+int GetRankVals(int* vals, int numVals, int** toPopulate)
 {
-	return 0;
+	
+	int itr;
+	int totalMembers = numVals;
+	int** partials = (int**) calloc(count, sizeof(int*));
+	int counts[count];
+	counts[0] = numVals;
+		
+	//printf("Rank %d: Entering the receiving Proc.\n", id);
+	
+	//PrintArray(vals,numVals);
+	for(itr = 1; itr < count; itr++)
+	{
+		partials[itr] = (int*)calloc(1, sizeof(int));
+		counts[itr] = GetValuesFromWoker(itr, &partials[itr]);
+		totalMembers += counts[itr];
+		//PrintArray(partials[itr], counts[itr]);
+	}
+	
+	/*printf("Rank %d: Should have all the vals.\n", id);
+	PrintArray(counts, count);
+	printf("Rank %d: totalMembers %d.\n", id, totalMembers);*/
+	
+	
+	*toPopulate = (int*) calloc(totalMembers, sizeof(int));
+	//PrintArray(vals,numVals);
+	memcpy(*toPopulate, vals, numVals*sizeof(int));
+	
+	//PrintArray(*toPopulate, numVals);
+	
+	//printf("Rank %d: Have the first vals Count %d.\n", id, count);
+	
+	int offset = 0;
+	
+	for(itr = 1; itr < count; itr++)
+	{
+		offset += counts[itr-1];
+		memcpy(*toPopulate + offset, partials[itr], counts[itr]*sizeof(int));
+		
+	}
+	
+	//printf("Rank %d: Exiting the receiving Proc.\n", id);
+	
+	return totalMembers;
+}
+
+
+int GetValuesFromWoker(int rank, int** toPopulate)
+{
+	MPI_Request res1, res2;
+	MPI_Status stat1, stat2;
+	
+	int size = 0;
+	
+	MPI_Irecv(&size, 1, MPI_UNSIGNED, rank, MPI_ANY_TAG,
+    		MPI_COMM_WORLD, &res1);
+	
+	MPI_Wait(&res1, &stat1);
+	
+	*toPopulate = (int*) calloc(size, sizeof(int));
+	
+	MPI_Irecv(*toPopulate, size, MPI_UNSIGNED, rank, MPI_ANY_TAG,
+    		MPI_COMM_WORLD, &res2);
+	
+	MPI_Wait(&res2, &stat2);
+	
+	//PrintArray(*toPopulate, size);
+	
+	return size;
+	
 }
 
 //WORKER RANK FUNCTIONS
@@ -232,6 +325,24 @@ elements in that array.  it send this array to the main rank.
 */
 int SendVals(int* vals, int numVals)
 {
+	MPI_Request res1, res2;
+	//MPI_Status stat1, stat2;
+	
+	//printf("Rank %d: Entering the child sending Proc.\n", id);
+	
+	
+	MPI_Isend(&numVals, 1, MPI_UNSIGNED, 0, 0,
+    		MPI_COMM_WORLD, &res1);
+	
+	//MPI_Wait(&res1, &stat1);
+	
+	MPI_Isend(vals, numVals, MPI_UNSIGNED, 0, 0,
+    		MPI_COMM_WORLD, &res2);
+	
+	//MPI_Wait(&res2, &stat2);
+	
+	//printf("Rank %d: Exiting the child sending Proc.\n", id);
+	
 	return 0;
 }
 
