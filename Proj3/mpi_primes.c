@@ -35,6 +35,8 @@ void PrintArray(int* array, int num);
 
 //Testing Functions
 void TrentonTesting();
+int AddToWheelTest();
+int GetSendValsTest();
 
 
 
@@ -453,7 +455,19 @@ void PrintArray(int* array, int num)
 void TrentonTesting()
 {
 	
-	/*struct Wheel* wheel = calloc(1, sizeof(struct Wheel));
+	if(AddToWheelTest() != 0)
+	{
+		printf("Add to wheel test failed.\n");
+	} else if(GetSendValsTest() != 0)
+	{
+		printf("Get/Send Vals test failed.\n");
+	} 
+	
+}
+
+int AddToWheelTest()
+{
+	struct Wheel* wheel = calloc(1, sizeof(struct Wheel));
 	wheel->arr = calloc(10, sizeof(int));
 	wheel->entries = 4;
 	wheel->wheel_size = 10;
@@ -472,10 +486,18 @@ void TrentonTesting()
 	
 	Add_To_Wheel(wheel, buffer, 10);
 	
-	PrintArray(wheel->arr, wheel->entries);*/
+	PrintArray(wheel->arr, wheel->entries);
 	
-	
-	/*int size = (id + 1) * 5;
+	if(wheel->entries == 14)
+	{
+		return 0;
+	}
+	else return 1;
+}
+
+int GetSendValsTest()
+{
+	int size = (id + 1) * 5;
 	int buffer[size];
 	int itr;
 	
@@ -493,8 +515,9 @@ void TrentonTesting()
 	else
 	{
 		SendVals(buffer, size);
-	}*/
+	}
 	
+	return 0;
 }
 
 
