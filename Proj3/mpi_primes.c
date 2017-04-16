@@ -127,11 +127,20 @@ int main(int argc, char** argv)
 			Add_To_Wheel(wheel, joinedPrimes, found);
 			//PrintArray(wheel->arr,wheel->entries);
 			if(end_now==0)	printf("%d\t\t%d\n",end,primes);
-			else printf("%d\t\t%d\n",interEnd,primes);
+			else {
+				printf("%d\t\t%d\n",interEnd,primes);
+				MPI_Finalize();
+				return 0;
+			} 
 			BroadcastWheel(wheel);
 			
 		} else {
 			SendVals(output, count);
+			if(end_now == 1)
+			{
+				MPI_Finalize();
+				return 0;
+			}
 			GetWheel(wheel);
 		}
 		
@@ -191,6 +200,7 @@ int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count)
 		//printf("\nduh  %d", start);
 		for(y = 0; y < wheel->entries; y++)
 		{
+			if(end_now == 1)break;
 			if(start%wheel->arr[y] == 0)
 			{
 				//printf(" dumb \n");
