@@ -27,7 +27,7 @@ int SendVals(int* vals, int numVals);
 //Array Managment
 int Add_To_Int_Array(int** array, int arraySize, int entries, int item);
 void Add_To_Wheel(struct Wheel* wheel, int item);
-int Wheel_Factorize(int _start, int _end, struct Wheel* wheel);
+int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count);
 
 //Helper Functions
 void PrintArray(int* array, int num);
@@ -54,18 +54,32 @@ int main(int argc, char** argv)
     
     signal(SIGUSR1, sig_handler);
 	
-	
-    int count = 0;
+	int* output, x;
+    int count = 4;
 	struct Wheel* wheel = calloc(1, sizeof(struct Wheel));
-    wheel->arr = calloc(10, sizeof(int));
-	wheel->entries = 4;
-	wheel->wheel_size = 10;
-	wheel->arr[0] = 2;
-	wheel->arr[1] = 3;
-	wheel->arr[2] = 5;
-	wheel->arr[3] = 7;
-	printf("%d\n", wheel->entries);
-	count = Wheel_Factorize(3, 99, wheel);
+	if(id == 0)
+	{
+		wheel->arr = calloc(10, sizeof(int));
+		wheel->entries = 4;
+		wheel->wheel_size = 10;
+		wheel->arr[0] = 2;
+		wheel->arr[1] = 3;
+		wheel->arr[2] = 5;
+		wheel->arr[3] = 7;
+		printf("%d\n", wheel->entries);
+		BroadcastWheel(wheel);
+		output = Wheel_Factorize(3, 99, wheel, &count);
+		
+	} else {
+		GetWheel(wheel);
+		for(x=0; x<wheel->entries;x++)
+	{
+		printf("%d   %d\n", x, wheel->arr[x]);
+	}
+	}
+    
+	
+	
 	
 	printf("%d\n", count);
 	
@@ -89,61 +103,61 @@ int main(int argc, char** argv)
 
 **/
 
-int Wheel_Factorize(int _start, int _end, struct Wheel* wheel)
+int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count)
 {
 	int start = _start;
 	int end = _end;
-	int x = 0, arrsize = 10, y = 0, flag = 0, count = 0;
+	int x = 0, arrsize = 10, y = 0, flag = 0;//, count = 0;
 	int* output = calloc(arrsize, sizeof(int));
 	if(start%2==0)
 	{
-		printf("huh %d", start);
+		//printf("huh %d", start);
 		start--;
 	}
 	if(end%2==0)
 	{
 		end++;
 	}
-	printf("%d\n", wheel->entries);
+	//printf("%d\n", wheel->entries);
 	while(start<=end)
 	{
-		printf("\nduh  %d", start);
+		//printf("\nduh  %d", start);
 		for(y = 0; y < wheel->entries; y++)
 		{
 			if(start%wheel->arr[y] == 0)
 			{
-				printf(" dumb \n");
+				//printf(" dumb \n");
 				flag = -1;
 				break;
 			} else {
-				printf(" dooh   ");
+				//printf(" dooh   ");
 				flag = 1;
 			}
 		}
 		
 		if(flag == 1)
 		{
-			printf("output pointer value: %li\n", (long int) output);
-			arrsize = Add_To_Int_Array(&output, arrsize, count, start);\
-			printf("output pointer value (after): %li\n", (long int) output);
-			printf("%d\n",count);
-			for(x=0; x<count;x++)
+			//printf("output pointer value: %li\n", (long int) output);
+			arrsize = Add_To_Int_Array(&output, arrsize, *count, start);\
+			//printf("output pointer value (after): %li\n", (long int) output);
+			//printf("%d\n",*count);
+			for(x=0; x<*count;x++)
 			{
-				printf("%d : ", output[x]);
+				//printf("%d : ", output[x]);
 			}
-			printf("\n");
-			count++;
+			//printf("\n");
+			(*count)++;
 		}
 		
 		start+=2;
 	}
 	
-	for(x=0; x<count;x++)
+	for(x=0; x<*count;x++)
 	{
-		printf("%d   %d\n", x, output[x]);
+		//printf("%d   %d\n", x, output[x]);
 	}
 	
-	return count;
+	return output;
 }
 
 void Add_To_Wheel(struct Wheel* wheel, int item)
@@ -165,11 +179,11 @@ int Add_To_Int_Array(int** array, int arraySize, int entries, int item)
 {
 	if(entries>=arraySize-2)
 	{
-		printf("Faggots ");
+		//printf("Faggots ");
 		arraySize = arraySize*2;
-		printf("Array before realloc: %li\n", (long int) array);
+		//printf("Array before realloc: %li\n", (long int) array);
 		*array = realloc(*array, sizeof(int) * arraySize);
-		printf("Array after realloc: %li\n", (long int) array);
+		//printf("Array after realloc: %li\n", (long int) array);
 		(*array)[entries] = item;
 		//entries++;
 	} else {
