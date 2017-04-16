@@ -41,11 +41,13 @@ int GetSendValsTest();
 
 
 int end_now = 0;
-int worldSize, id;
+int worldSize, id, interEnd;
 
 void sig_handler(int signo)
 {
+	//printf("DUh\n");
     if (signo == SIGUSR1) {
+		//printf("WUh\n");
         end_now = 1;
     }
 }
@@ -60,8 +62,8 @@ int main(int argc, char** argv)
     
     signal(SIGUSR1, sig_handler);
 	
-	int start = 10, end = 100, rankStart, rankEnd, found;
-	int* output, x;
+	int start = 10, end = 100, rankStart, rankEnd, found, stop = 0;
+	int* output;
     int count = 0, primes = 4;
 	struct Wheel* wheel = calloc(1, sizeof(struct Wheel));
 	int* joinedPrimes;
@@ -92,20 +94,26 @@ int main(int argc, char** argv)
 	if(id == 0)
 	{
 		rankStart = start;
+		printf("N\t\tPrimes\n");
+		printf("10\t\t%d\n",primes);
 	}
-
+	
     while (1) {
 		if(id == 0)
 		{
 			rankStart = start;
 			rankEnd = (end/worldSize) * (id + 1);
+		} else if(id == worldSize-1)
+		{
+			rankStart = (end/worldSize) * (id);
+			rankEnd = end;
 		} else {
 			rankStart = (end/worldSize) * (id);
 			rankEnd = (end/worldSize) * (id + 1);
 		}
 		count = 0;
-		//printf("Rank: %d, Start: %d, End: %d\n", id, rankStart, rankEnd);
-		end_now = 1;
+		//printf("Stop: %d, Rank: %d, Start: %d, End: %d \n", stop, id, rankStart, rankEnd);
+		
 		
 		//Communication! POOP People Order Our Primes!
 		output = Wheel_Factorize(rankStart, rankEnd, wheel, &count);
@@ -115,19 +123,33 @@ int main(int argc, char** argv)
 		{
 			found = GetRankVals(output, count, &joinedPrimes);
 			primes += found;
-			PrintArray(joinedPrimes, found);
+			//PrintArray(joinedPrimes, found);
+			Add_To_Wheel(wheel, joinedPrimes, found);
+			//PrintArray(wheel->arr,wheel->entries);
+			if(end_now==0)	printf("%d\t\t%d\n",end,primes);
+			else printf("%d\t\t%d\n",interEnd,primes);
+			BroadcastWheel(wheel);
+			
 		} else {
 			SendVals(output, count);
+			GetWheel(wheel);
 		}
-        if (end_now == 1) {
-            break;
+		
+		if (end_now == 1 || stop == 30) {
+			//printf()
+			//printf("FINE!\n");
+            return 0;
         }
+        
+		stop++;
 		start*=10;
 		end*=10;
 		
+		
+		
     }
 	
-	printf("%d\n", primes);
+	//printf("%d\n", primes);
 	
 	
     MPI_Finalize();
@@ -150,15 +172,20 @@ int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count)
 	if(start%2==0)
 	{
 		//printf("huh %d", start);
-		start--;
+		start++;
 	}
 	if(end%2==0)
 	{
-		end++;
+		end--;
 	}
 	//printf("%d\n", wheel->entries);
 	while(start<=end)
 	{
+		if (end_now == 1) {
+			//printf("FINE!\n");
+			interEnd = start;
+            return output;
+        }
 		//printf("\nduh  %d", start);
 		for(y = 0; y < wheel->entries; y++)
 		{
@@ -276,7 +303,7 @@ int BroadcastWheel(struct Wheel* wheel)
 	MPI_Wait(&res1, &stat1);
 	MPI_Wait(&res2, &stat2);
 	
-	PrintArray(buffer, size);
+	//PrintArray(buffer, size);
 	
 	return 0;
 }
