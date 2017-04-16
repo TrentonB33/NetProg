@@ -187,6 +187,7 @@ int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count)
 			interEnd = start;
             return output;
         }
+		//printf("Rank %d: Num %d\n", id, start);
 		//printf("\nduh  %d", start);
 		for(y = 0; y < wheel->entries; y++)
 		{
@@ -282,7 +283,7 @@ int BroadcastWheel(struct Wheel* wheel)
     int root, MPI_Comm comm, MPI_Request *request)*/
 	
 	MPI_Request res1, res2;
-	//MPI_Status stat1, stat2;
+	MPI_Status stat1, stat2;
 	
 	int numIntInWheel = 3;
 	
@@ -307,10 +308,10 @@ int BroadcastWheel(struct Wheel* wheel)
     		0, MPI_COMM_WORLD, &res1);
 	
 	MPI_Ibcast(buffer, size, MPI_UNSIGNED,
-    		0, MPI_COMM_WORLD, &res2);
+    		0, MPI_COMM_WORLD, &res2);*/
 	
 	MPI_Wait(&res1, &stat1);
-	MPI_Wait(&res2, &stat2);*/
+	MPI_Wait(&res2, &stat2);
 	
 	//PrintArray(buffer, size);
 	
@@ -437,6 +438,7 @@ int GetWheel(struct Wheel* toPopulate)
 	memcpy(toPopulate->arr, buffer+numIntInWheel, toPopulate->entries*sizeof(int));
 	
 	//PrintArray(buffer, size);
+	
 	
 	return 0;
 }
