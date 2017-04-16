@@ -175,7 +175,7 @@ int main(int argc, char** argv)
 
 int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count)
 {
-	int start = _start;
+	int start = _start, sqr;
 	int end = _end;
 	int x = 0, arrsize = 10, y = 0, flag = 0;//, count = 0;
 	int* output = calloc(arrsize, sizeof(int));
@@ -196,10 +196,16 @@ int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count)
 			interEnd = start;
             return output;
         }
+		sqr = sqrt(start);
 		//printf("Rank %d: Num %d\n", id, start);
 		//printf("\nduh  %d", start);
 		for(y = 0; y < wheel->entries; y++)
 		{
+			if(wheel->arr[y] > sqr)
+			{
+				//printf("Yes\n");
+				break;
+			}
 			if(end_now == 1)break;
 			if(start%wheel->arr[y] == 0)
 			{
