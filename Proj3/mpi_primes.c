@@ -58,11 +58,11 @@ int main(int argc, char** argv)
     
     signal(SIGUSR1, sig_handler);
 	
-
+	int start = 10, end = 100, rankStart, rankEnd, found;
 	int* output, x;
-    int count = 4;
-
+    int count = 0, primes = 4;
 	struct Wheel* wheel = calloc(1, sizeof(struct Wheel));
+	int* joinedPrimes;
 	if(id == 0)
 	{
 		wheel->arr = calloc(10, sizeof(int));
@@ -72,32 +72,60 @@ int main(int argc, char** argv)
 		wheel->arr[1] = 3;
 		wheel->arr[2] = 5;
 		wheel->arr[3] = 7;
-		printf("%d\n", wheel->entries);
+		//printf("%d\n", wheel->entries);
 		BroadcastWheel(wheel);
-		output = Wheel_Factorize(3, 99, wheel, &count);
-		
+		//output = Wheel_Factorize(3, 99, wheel, &count);
+		//primes +
 	} else {
 		GetWheel(wheel);
-		for(x=0; x<wheel->entries;x++)
-	{
-		printf("%d   %d\n", x, wheel->arr[x]);
-	}
+	
 	}
     
 	
 	
 	
-	printf("%d\n", count);
 	
-	TrentonTesting();
 	
+	//TrentonTesting();
+	if(id == 0)
+	{
+		rankStart = start;
+	}
 
-    /*while (1) {
+    while (1) {
+		if(id == 0)
+		{
+			rankStart = start;
+			rankEnd = (end/worldSize) * (id + 1);
+		} else {
+			rankStart = (end/worldSize) * (id);
+			rankEnd = (end/worldSize) * (id + 1);
+		}
+		count = 0;
+		//printf("Rank: %d, Start: %d, End: %d\n", id, rankStart, rankEnd);
 		end_now = 1;
+		
+		//Communication! POOP People Order Our Primes!
+		output = Wheel_Factorize(rankStart, rankEnd, wheel, &count);
+		
+		//PrintArray(output, count);
+		if(id == 0)
+		{
+			found = GetRankVals(output, count, &joinedPrimes);
+			primes += found;
+			PrintArray(joinedPrimes, found);
+		} else {
+			SendVals(output, count);
+		}
         if (end_now == 1) {
             break;
         }
-    }*/
+		start*=10;
+		end*=10;
+		
+    }
+	
+	printf("%d\n", primes);
 	
 	
     MPI_Finalize();
@@ -373,7 +401,7 @@ int GetWheel(struct Wheel* toPopulate)
 	toPopulate->arr = (int*) calloc(toPopulate->entries, sizeof(int));
 	memcpy(toPopulate->arr, buffer+numIntInWheel, toPopulate->entries*sizeof(int));
 	
-	PrintArray(buffer, size);
+	//PrintArray(buffer, size);
 	
 	return 0;
 }
