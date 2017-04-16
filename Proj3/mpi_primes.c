@@ -138,6 +138,7 @@ int main(int argc, char** argv)
 		if (end_now == 1 || stop == 30) {
 			//printf()
 			//printf("FINE!\n");
+			MPI_Finalize();
             return 0;
         }
         
