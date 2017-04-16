@@ -298,20 +298,20 @@ int BroadcastWheel(struct Wheel* wheel)
 	
 	int itr;
 	
-	for(itr = 0; itr < worldSize; itr++)
+	for(itr = 1; itr < worldSize; itr++)
 	{
 		MPI_Isend(&size, 1, MPI_UNSIGNED, itr, 0, MPI_COMM_WORLD, &res1);
 	
 		MPI_Isend(buffer, size, MPI_UNSIGNED,itr, 0, MPI_COMM_WORLD, &res2);
+		
+		MPI_Wait(&res1, &stat1);
+		MPI_Wait(&res2, &stat2);
 	}
 	/*MPI_Ibcast(&size, 1, MPI_UNSIGNED,
     		0, MPI_COMM_WORLD, &res1);
 	
 	MPI_Ibcast(buffer, size, MPI_UNSIGNED,
     		0, MPI_COMM_WORLD, &res2);*/
-	
-	MPI_Wait(&res1, &stat1);
-	MPI_Wait(&res2, &stat2);
 	
 	//PrintArray(buffer, size);
 	
