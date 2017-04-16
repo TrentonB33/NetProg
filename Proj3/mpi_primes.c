@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <strings.h>
+#include <string.h>
 
 struct Wheel {
 	int wheel_size;
@@ -21,13 +23,19 @@ int* GetRankVals();
 int GetWheel(struct Wheel* toPopulate);
 int SendVals(int* vals, int numVals);
 
+
 //Array Managment
 int Add_To_Int_Array(int** array, int arraySize, int entries, int item);
 void Add_To_Wheel(struct Wheel* wheel, int item);
 int Wheel_Factorize(int _start, int _end, struct Wheel* wheel);
 
+//Helper Functions
+void PrintArray(int* array, int num);
+
+
 
 int end_now = 0;
+int worldSize, id;
 
 void sig_handler(int signo)
 {
@@ -38,11 +46,11 @@ void sig_handler(int signo)
 
 int main(int argc, char** argv)
 {
-	int worldSize, id;
-	
+
 	MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
     MPI_Comm_rank(MPI_COMM_WORLD, &id);
+	
     
     signal(SIGUSR1, sig_handler);
 	
@@ -61,9 +69,9 @@ int main(int argc, char** argv)
 	
 	printf("%d\n", count);
 	
-    
-    
+
     /*while (1) {
+		end_now = 1;
         if (end_now == 1) {
             break;
         }
@@ -191,6 +199,34 @@ Worker Ranks. Nothing else special is done.
 
 int BroadcastWheel(struct Wheel* wheel)
 {
+	/*int MPI_Ibcast(void *buffer, int count, MPI_Datatype datatype,
+    int root, MPI_Comm comm, MPI_Request *request)*/
+	
+	MPI_Request res1, res2;
+	MPI_Status stat1, stat2;
+	
+	int numIntInWheel = 3;
+	
+	int size = wheel->entries + numIntInWheel;
+	
+	int buffer[size];
+	buffer[0] = wheel->wheel_size;
+	buffer[1] = wheel->entries;
+	buffer[2] = wheel->maxPrimes;
+	
+	memcpy(buffer+numIntInWheel, wheel->arr, sizeof(int)*wheel->entries);
+	
+	MPI_Ibcast(&size, 1, MPI_UNSIGNED,
+    		0, MPI_COMM_WORLD, &res1);
+	
+	MPI_Ibcast(buffer, size, MPI_UNSIGNED,
+    		0, MPI_COMM_WORLD, &res2);
+	
+	MPI_Wait(&res1, &stat1);
+	MPI_Wait(&res2, &stat2);
+	
+	PrintArray(buffer, size);
+	
 	return 0;
 }
 
@@ -218,6 +254,36 @@ That is received from the main rank
 */
 int GetWheel(struct Wheel* toPopulate)
 {
+	MPI_Request res1, res2;
+	MPI_Status stat1, stat2;
+	
+	int size = 0;
+	int numIntInWheel = 3;
+	
+	MPI_Ibcast(&size, 1, MPI_UNSIGNED,
+    		0, MPI_COMM_WORLD, &res1);
+	
+	MPI_Wait(&res1, &stat1);
+	
+	/*printf("Worker made it past the INIT!\n");
+	scanf("\n");*/
+	
+	int buffer[size];
+	
+	MPI_Ibcast(buffer, size, MPI_UNSIGNED,
+    		0, MPI_COMM_WORLD, &res2);
+	
+	MPI_Wait(&res2, &stat2);
+	
+	toPopulate->wheel_size = buffer[0];
+	toPopulate->entries = buffer[1];
+	toPopulate->maxPrimes = buffer[2];
+	
+	toPopulate->arr = (int*) calloc(toPopulate->entries, sizeof(int));
+	memcpy(toPopulate->arr, buffer+numIntInWheel*sizeof(int), toPopulate->entries*sizeof(int));
+	
+	PrintArray(buffer, size);
+	
 	return 0;
 }
 
@@ -231,6 +297,19 @@ elements in that array.  it send this array to the main rank.
 int SendVals(int* vals, int numVals)
 {
 	return 0;
+}
+
+
+//Helper Functions:
+void PrintArray(int* array, int num)
+{
+	int i;
+	printf("Rank %d: ", id);
+	for(i = 0; i < num; i++)
+	{
+		printf("%d ", array[i]);
+	}
+	printf("\n");
 }
 
 
