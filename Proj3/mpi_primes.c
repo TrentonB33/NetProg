@@ -130,7 +130,6 @@ int main(int argc, char** argv)
 			else {
 				printf("%d\t\t%d\n",interEnd,primes);
 				MPI_Finalize();
-				exit(0);
 				return 0;
 			} 
 			BroadcastWheel(wheel);
@@ -145,7 +144,7 @@ int main(int argc, char** argv)
 			GetWheel(wheel);
 		}
 		
-		if (end_now == 1 || stop == 4) {
+		if (end_now == 1 || stop == 30) {
 			//printf()
 			//printf("FINE!\n");
 			MPI_Finalize();
@@ -193,7 +192,7 @@ int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count)
 	while(start<=end)
 	{
 		if (end_now == 1) {
-			printf("FINE!\n");
+			//printf("FINE!\n");
 			interEnd = start;
             return output;
         }
