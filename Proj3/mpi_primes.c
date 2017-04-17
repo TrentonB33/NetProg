@@ -239,6 +239,7 @@ int* Wheel_Factorize(int _start, int _end, struct Wheel* wheel, int* count)
 	{
 		//printf("%d   %d\n", x, output[x]);
 	}
+	interEnd = start;
 	
 	return output;
 }
