@@ -180,7 +180,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 			
 			if(opCode == 3){
 				data = recv;
-				//printf("put %d\n", read);
+				printf("put %d\n", read);
 				if(ntohs(data->Block) == blockNum)
 				{
 					written = fwrite(data->Data, 1, read-4, fp);
@@ -297,12 +297,12 @@ int RunServer(int sockFD)
 
 		amtRead = recvfrom(sockFD, message, MAXSIZE, 0, (struct sockaddr *) clientAddr, &addrLen);
 
-		//printf("Got a message from: %d:%d\n", ntohl(clientAddr->sin_addr.s_addr), 
-		//	   ntohs(clientAddr->sin_port));
+		printf("Got a message from: %d:%d\n", ntohl(clientAddr->sin_addr.s_addr), 
+			   ntohs(clientAddr->sin_port));
 
-		//printf("Size: %d\n", amtRead);
-		//write(1, message, amtRead);
-		//printf("\n");
+		printf("Size: %d\n", amtRead);
+		write(1, message, amtRead);
+		printf("\n");
 		
 		opCode = ParsePacket(message, result);
 		//printf("Opcode:  %d\n", opCode);
