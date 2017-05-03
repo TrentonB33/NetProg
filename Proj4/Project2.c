@@ -58,19 +58,6 @@ struct ErrorPacket {
 
 
 
-int Client()
-{
-	
-	
-	
-	
-	return 0;
-}
-
-
-
-
-
 
 int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct Request_Datagram)
 {
