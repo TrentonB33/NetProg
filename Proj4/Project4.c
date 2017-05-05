@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <arpa/inet.h>
 
 #define MAXSIZE 516
 
@@ -20,17 +21,9 @@
 
 #define BufLen 512
 
-//Function Prototypes
-int MakeSocket(uint16_t* port);
-short ParsePacket(char* buf, void* result);
-int RunServer(int sockFD);
-void CheckChildren(pid_t* children, int* curSize);
-int compare (const void * a, const void * b);
-void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* dest);
-char* SetupFiles(char* tempDir, char* hashFile, int* hashFD);
 
 
-
+//OpCode 1/2
 struct RWPacket {
 	short OpCode;
 	char* Filename;
@@ -39,25 +32,208 @@ struct RWPacket {
 	int ClientTID;
 };
 
+//OpCode 3
 struct DataPacket {
 	short OpCode;
 	short Block;
 	char Data[512];
 };
 
+//OpCode 4
 struct ACKPacket {
 	short OpCode;
 	short Block;
 };
 
+//OpCode 5
 struct ErrorPacket {
 	short OpCode;
 	short ErrCode;
 	char ErrorMsg[512];
 };
 
+//OpCode 6
+struct ContentPacket {
+	short OpCode;
+	int HostTID;	
+	int ClientTID;
+};
+
+//OpCode 7
+struct QueryPacket {
+	short OpCode;
+	struct timespec timestamp;
+	char Filename[255];
+};
+
+
+struct Contents {
+	char** Filenames;
+	char** Hashes;
+	int count;
+};
+
+
+
+//Function Prototypes
+int MakeSocket(uint16_t* port);
+short ParsePacket(char* buf, void* result);
+int RunServer(int sockFD);
+void CheckChildren(pid_t* children, int* curSize);
+int compare (const void * a, const void * b);
+void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* dest);
+int Run_Client(int sockFD, int TID);
+int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD);
+int Child_Process( struct sockaddr_in * dest, struct RWPacket* type);
+struct Contents* ReadContents(char* file);
+char** CompareContents(int* _gets, int* _puts, int* qct);
+char* SetupFiles(char* tempDir, char* hashFile, int* hashFD);
+void MakeContentRequest(char* hashFile, void* result);
+
+
+static struct Contents* _servContents;
+static struct Contents* _locContents;
+
 //WR=0 is a write request WR=1 is a read request
 
+
+void strip_char(char *str, char strip)
+{
+    char *p, *q;
+    for (q = p = str; *p; p++)
+        if (*p != strip)
+            *q++ = *p;
+    *q = '\0';
+}
+
+char** CompareContents(int* _gets, int* _puts, int* qct)
+{
+	int* gets = _gets, * puts = _puts, queryCt = 0, queryarr = 15;
+	char** queries = calloc(15, sizeof(char*));
+	int x = 0, y = 0;
+	for(x=0;x<_locContents->count;x++)
+	{
+		for(y=0;y<_servContents->count;y++)
+		{
+			if(strcmp(_locContents->Filenames[x], _servContents->Filenames[y]) == 0)
+			{
+				gets[y] = 1;
+				puts[x] = 1;
+				if(strcmp(_locContents->Hashes[x], _servContents->Hashes[y]) != 0)
+				{
+					queries[queryCt] = _locContents->Filenames[x];
+					queryCt++;
+					if(queryCt>=queryarr-2)
+					{
+						queryarr= queryarr * 2;
+						queries = realloc(queries, queryarr);
+					}
+				}
+				break;
+			}
+		}
+	}
+	*qct = queryCt;
+	return queries;
+}
+
+
+int ProcessClientQueries(char ** queries, int queryCt)
+{
+	for(int x=0; x<queryCt;x++)
+	{
+		
+	}
+}
+
+
+int Run_Client(int sockFD, int TID)
+{
+	struct sockaddr_in* serverAddr = (struct sockaddr_in*)calloc(1,sizeof(struct sockaddr_in));
+	socklen_t addrLen = sizeof(struct sockaddr_in);
+	char ** diffs;
+	int* gets, *puts, queries = 0;
+	serverAddr->sin_family = AF_INET;
+	serverAddr->sin_port = htons(sockFD);
+	serverAddr->sin_addr.s_addr = htons(inet_addr("127.0.0.1"));
+	Get_Contents(serverAddr, TID, sockFD);
+	//Creates local hashes ---------------------------
+	gets = calloc(_servContents->count, sizeof(int));
+	puts = calloc(_locContents->count, sizeof(int));
+	memset(gets, 0, _servContents->count);
+	memset(puts, 0, _locContents->count);
+	diffs = CompareContents(gets, puts, &queries);
+	printf("Count: %d\n", queries);
+	
+	return 0;
+}
+
+
+
+int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
+{
+	struct ContentPacket* init = calloc(1, sizeof(struct ContentPacket));
+	int sentAmt = 0, read, res = 0;
+	char buf[MAXSIZE];
+	struct RWPacket* rw = calloc(1, sizeof(struct RWPacket));
+	socklen_t addrLen = sizeof(struct sockaddr_in);
+	init->ClientTID = TID;
+	init->OpCode = 6;  //Contents OpCode
+	sentAmt = sendto(sockFD, init, sizeof(struct ContentPacket), 0, (struct sockaddr*)serverAddr,sizeof(struct sockaddr_in)); //Send initial contents packet
+	read = recvfrom(sockFD, buf, MAXSIZE, 0, (struct sockaddr*) serverAddr, &addrLen);
+	
+	ParsePacket(buf, rw);
+	
+	res = Child_Process(serverAddr, rw);
+	if(res!=0)
+	{
+		printf("ERROR: TIMEOUT");
+		exit(1);
+	} 
+	
+	_servContents = ReadContents(rw->Filename);
+	
+	
+		
+	return 0;
+}
+
+
+struct Contents* ReadContents(char* file)
+{
+	//perror("hi");
+	int count = 0, arrsize = 100;
+	FILE * fp;
+	char * readBuf = calloc(300, sizeof(char)), * hash, *filename;
+	struct Contents* content = calloc(1, sizeof(struct Contents));
+	content->Filenames = calloc(arrsize, sizeof(char*));
+	content->Hashes = calloc(arrsize, sizeof(char*));
+	fp = fopen(/*buf.FileName*/file, "r");
+	while(fgets(readBuf, 299, fp))
+	{
+		
+		//printf("wop: %s", readBuf);
+		hash = strtok(readBuf, "&");
+		
+		filename = strtok(NULL, "\r");
+		strip_char(filename, '\n');
+		printf("Hash: %s    Filename: %s\n", hash, filename);
+		content->Hashes[count] = hash;
+		content->Filenames[count] = filename;
+		//printf("bloop: %s\n",content->Hashes[count]);
+		count++;
+		if(count>=arrsize-2)
+		{
+			arrsize = arrsize*2;
+			content->Filenames = realloc(content->Filenames, arrsize);
+			content->Hashes = realloc(content->Hashes, arrsize);
+		}
+		readBuf = calloc(300, sizeof(char));
+	}
+	content->count = count;
+	
+	return content;
+}
 
 
 
@@ -262,13 +438,45 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 
 int main (int arc, char** argv)
 {
-	uint16_t port = 0; 	
-	int socketFD = MakeSocket(&port);
+	uint16_t port = atoi(argv[2]); 	
+	int socketFD;
+	int* gets, *puts, queries = 0;
+	char ** diffs;
+	
+	_servContents = ReadContents("Butts");
+	_locContents = ReadContents("Breasts.txt");
+	gets = calloc(_servContents->count, sizeof(int));
+	puts = calloc(_locContents->count, sizeof(int));
+	memset(gets, 0, _servContents->count * sizeof(int));
+	memset(puts, 0, _locContents->count * sizeof(int));
+	diffs = CompareContents(gets,puts, &queries);
+	printf("Count: %d\n", queries);
+	
+	for(int x = 0; x <_servContents->count; x++)
+	{
+		printf("Get %d: %d\n", x, gets[x]);
+	}
+	
+	for(int x = 0; x <queries; x++)
+	{
+		printf("Query %d: %s\n", x, diffs[x]);
+	}
+	//printf("Test--\nCount: %d\nHash: %s\nFileName: %s\n",_servContents->count, _servContents->Hashes[0], _servContents->Filenames[0]);
+	
+	/*
+	
 	
 	printf("%d\n", (int)port);
-	
-	RunServer(socketFD);
-	
+	if(strcmp(argv[1],"server") == 0)
+	{
+		socketFD = MakeSocket(&port);
+		RunServer(socketFD);
+	}
+		
+	if(strcmp(argv[1],"client") == 0)
+		socketFD = MakeSocket(&port);
+		Run_Client(socketFD, port);
+	*/
 	return EXIT_SUCCESS;
 }
 
@@ -282,7 +490,7 @@ int RunServer(int sockFD)
 	char message[MAXSIZE];
 	
 	int opCode = 0;
-	void* result = calloc(1, sizeof(char));
+	void* result = calloc(MAXSIZE, sizeof(char));
 	
 	int maxChildren = 2;
 	int curChildren = 0;
@@ -308,9 +516,8 @@ int RunServer(int sockFD)
 		
 		opCode = ParsePacket(message, result);
 		//printf("Opcode:  %d\n", opCode);
-		
 		/*If the request is for reading or writing a file, then make a child process to
-		* Do so. */
+		* Do so. */																		 
 		if(opCode < 3)
 		{
 			
@@ -319,6 +526,8 @@ int RunServer(int sockFD)
 			{
 				//printf("I'm a child!!   %d\n", ((struct RWPacket*)result)->OpCode);
 				Child_Process (clientAddr, (struct RWPacket *) result);
+				//remember to pipe to the parent that the process is over, or research
+				//again how the parent knows the child ended.
 			}
 			else if(childID > 0)
 			{
@@ -341,9 +550,9 @@ int RunServer(int sockFD)
 		* send a write request for the file with the hashes. */
 		else if (opCode == 6)
 		{
+			MakeContentRequest(hashFile, result);
 			
-		}
-			
+		}										      
 		else
 		{
 			SendErrorPacket(sockFD, 0, 
@@ -359,6 +568,7 @@ int RunServer(int sockFD)
 	/***************************************
 	* MAKE SURE TO DELETE THE TEMP DIR
 	***************************************/
+	
 	
 	free(clientAddr);
 	
@@ -457,7 +667,7 @@ short ParsePacket(char* buf, void* result)
 		memcpy(result, ep, 512);
 		//free(ep);
 		
-	}
+	} 
 	
 	
 	
@@ -520,7 +730,7 @@ void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* de
 	err->OpCode = htons(5);
 	err->ErrCode = htons(EC);
 	strcpy(err->ErrorMsg, message);
-	sendto(socketFD, err, MAXSIZE, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
+	sendto(socketFD, err, MAXSIZE, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));	
 }
 
 //Initialize File Structure
@@ -535,16 +745,17 @@ char* SetupFiles(char* tempDir, char* hashFile, int* hashFD)
 	
 }
 
+//Make A Content Write Request
+void MakeContentRequest(char* hashFile, void* result)
+{
+	struct RWPacket* rw;
+	rw = calloc(1, sizeof(char)*512);
+	rw->OpCode = 2;
+	//printf("%d\n", rw->OpCode);
+	rw->Filename = strdup(hashFile);
+	memcpy(result, rw,512);
 
-
-
-
-
-
-
-
-
-
+}
 
 
 
