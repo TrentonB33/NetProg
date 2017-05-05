@@ -27,6 +27,8 @@ int RunServer(int sockFD);
 void CheckChildren(pid_t* children, int* curSize);
 int compare (const void * a, const void * b);
 void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* dest);
+char* SetupFiles(char* tempDir, char* hashFile, int* hashFD);
+
 
 
 struct RWPacket {
@@ -287,6 +289,9 @@ int RunServer(int sockFD)
 	pid_t* childProcs = (pid_t*)calloc(maxChildren, sizeof(pid_t));
 	pid_t childID = 0;
 	
+	//Make the temporary file system
+	//SetupFile
+	
 	
 	int running = 1;
 	
@@ -297,16 +302,12 @@ int RunServer(int sockFD)
 		bzero(clientAddr, sizeof(struct sockaddr_in));
 
 		amtRead = recvfrom(sockFD, message, MAXSIZE, 0, (struct sockaddr *) clientAddr, &addrLen);
-
-		//printf("Got a message from: %d:%d\n", ntohl(clientAddr->sin_addr.s_addr), 
-		//	   ntohs(clientAddr->sin_port));
-
-		//printf("Size: %d\n", amtRead);
-		//write(1, message, amtRead);
-		//printf("\n");
 		
 		opCode = ParsePacket(message, result);
 		//printf("Opcode:  %d\n", opCode);
+		
+		/*If the request is for reading or writing a file, then make a child process to
+		* Do so. */
 		if(opCode < 3)
 		{
 			
@@ -315,8 +316,6 @@ int RunServer(int sockFD)
 			{
 				//printf("I'm a child!!   %d\n", ((struct RWPacket*)result)->OpCode);
 				Child_Process (clientAddr, (struct RWPacket *) result);
-				//remember to pipe to the parent that the process is over, or research
-				//again how the parent knows the child ended.
 			}
 			else if(childID > 0)
 			{
@@ -335,6 +334,13 @@ int RunServer(int sockFD)
 				childProcs[curChildren] = childID;
 			}
 		}
+		/*Else, if the opcode tells us to do a contents request, then
+		* send a write request for the file with the hashes. */
+		else if (opCode == 6)
+		{
+			
+		}
+			
 		else
 		{
 			SendErrorPacket(sockFD, 0, 
@@ -508,6 +514,17 @@ void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* de
 	err->ErrCode = htons(EC);
 	strcpy(err->ErrorMsg, message);
 	sendto(socketFD, err, MAXSIZE, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
+}
+
+//Initialize File Structure
+char* SetupFiles(char* tempDir, char* hashFile, int* hashFD)
+{
+	char* tempName = mkdtemp(tempDir);
+	
+	*hashFD = open(hashFile, O_CREAT|O_WRONLY|O_TRUNC);
+	
+	return tempName;
+	
 	
 }
 
