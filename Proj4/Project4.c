@@ -502,16 +502,19 @@ int RunServer(int sockFD)
 	int opCode = 0;
 	void* result = calloc(MAXSIZE, sizeof(char));
 	
-	int maxChildren = 2;
+	/*int maxChildren = 2;
 	int curChildren = 0;
 	pid_t* childProcs = (pid_t*)calloc(maxChildren, sizeof(pid_t));
-	pid_t childID = 0;
+	pid_t childID = 0;*/
 	
 	//Make the temporary file system
 	char tempDir[] = "temp.XXXXXX\0";
 	char hashFile[] = ".4220_file_list.txt\0";
 	int hashFD = 0;
 	SetupFiles(tempDir, hashFile, &hashFD);
+	
+	uint16_t childPort = 0;
+	int childFD = MakeSocket(&childPort);
 	
 	
 	int running = 1;
@@ -531,15 +534,12 @@ int RunServer(int sockFD)
 		if(opCode < 3)
 		{
 			
-			childID = fork();
-			if(childID == 0)
-			{
-				//printf("I'm a child!!   %d\n", ((struct RWPacket*)result)->OpCode);
-				Child_Process (clientAddr, (struct RWPacket *) result);
-				//remember to pipe to the parent that the process is over, or research
-				//again how the parent knows the child ended.
-			}
-			else if(childID > 0)
+			//childID = fork();
+				
+			Child_Process (childFD, clientAddr, (struct RWPacket *) result);
+			
+			
+			/*else if(childID > 0)
 			{
 				if(curChildren == maxChildren)
 				{
@@ -554,13 +554,15 @@ int RunServer(int sockFD)
 				
 				curChildren++;
 				childProcs[curChildren] = childID;
-			}
+			}*/
 		}
 		/*Else, if the opcode tells us to do a contents request, then
 		* send a write request for the file with the hashes. */
 		else if (opCode == 6)
 		{
 			MakeContentRequest(hashFile, result);
+			Child_Process(childFD, clientAddr, (struct RWPacket *) result);
+			
 			
 		}										      
 		else
@@ -570,7 +572,7 @@ int RunServer(int sockFD)
 				clientAddr);
 		}
 		
-		CheckChildren(childProcs, &curChildren);
+		//CheckChildren(childProcs, &curChildren);
 		
 		
 	}
