@@ -87,6 +87,7 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD);
 int Child_Process( struct sockaddr_in * dest, struct RWPacket* type);
 struct Contents* ReadContents(char* file);
 char** CompareContents(int* _gets, int* _puts, int* qct);
+char* SetupFiles(char* tempDir, char* hashFile, int* hashFD);
 
 static struct Contents* _servContents;
 static struct Contents* _locContents;
@@ -137,7 +138,10 @@ char** CompareContents(int* _gets, int* _puts, int* qct)
 
 int ProcessClientQueries(char ** queries, int queryCt)
 {
-	for(int x=0; x<queryCt)
+	for(int x=0; x<queryCt;x++)
+	{
+		
+	}
 }
 
 
@@ -491,6 +495,9 @@ int RunServer(int sockFD)
 	pid_t* childProcs = (pid_t*)calloc(maxChildren, sizeof(pid_t));
 	pid_t childID = 0;
 	
+	//Make the temporary file system
+	//SetupFile
+	
 	
 	int running = 1;
 	
@@ -511,6 +518,8 @@ int RunServer(int sockFD)
 		
 		opCode = ParsePacket(message, result);
 		//printf("Opcode:  %d\n", opCode);
+		/*If the request is for reading or writing a file, then make a child process to
+		* Do so. */																		 
 		if(opCode < 3)
 		{
 			
@@ -539,6 +548,12 @@ int RunServer(int sockFD)
 				childProcs[curChildren] = childID;
 			}
 		}
+		/*Else, if the opcode tells us to do a contents request, then
+		* send a write request for the file with the hashes. */
+		else if (opCode == 6)
+		{
+			
+		}										      
 		else
 		{
 			SendErrorPacket(sockFD, 0, 
@@ -711,10 +726,20 @@ void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* de
 	err->OpCode = htons(5);
 	err->ErrCode = htons(EC);
 	strcpy(err->ErrorMsg, message);
-	sendto(socketFD, err, MAXSIZE, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
-	
+	sendto(socketFD, err, MAXSIZE, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));	
 }
 
+//Initialize File Structure
+char* SetupFiles(char* tempDir, char* hashFile, int* hashFD)
+{
+	char* tempName = mkdtemp(tempDir);
+	
+	*hashFD = open(hashFile, O_CREAT|O_WRONLY|O_TRUNC);
+	
+	return tempName;
+	
+	
+}
 
 
 
