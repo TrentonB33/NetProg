@@ -290,7 +290,10 @@ int RunServer(int sockFD)
 	pid_t childID = 0;
 	
 	//Make the temporary file system
-	//SetupFile
+	char tempDir[] = "temp.XXXXXX\0";
+	char hashFile[] = ".4220_file_list.txt\0";
+	int hashFD = 0;
+	SetupFiles(tempDir, hashFile, &hashFD);
 	
 	
 	int running = 1;
@@ -352,6 +355,10 @@ int RunServer(int sockFD)
 		
 		
 	}
+	
+	/***************************************
+	* MAKE SURE TO DELETE THE TEMP DIR
+	***************************************/
 	
 	free(clientAddr);
 	
