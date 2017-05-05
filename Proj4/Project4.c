@@ -84,7 +84,7 @@ int compare (const void * a, const void * b);
 void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* dest);
 int Run_Client(int sockFD, int TID);
 int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD);
-int Child_Process( struct sockaddr_in * dest, struct RWPacket* type);
+int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type);
 struct Contents* ReadContents(char* file);
 char** CompareContents(int* _gets, int* _puts, int* qct);
 char* SetupFiles(char* tempDir, char* hashFile, int* hashFD);
@@ -136,11 +136,17 @@ char** CompareContents(int* _gets, int* _puts, int* qct)
 }
 
 
-int ProcessClientQueries(char ** queries, int queryCt)
+int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in serverAddr, int sockFD)
 {
+	struct QueryPacket * query;
+	struct stat* buf;
+	
 	for(int x=0; x<queryCt;x++)
 	{
-		
+		query = calloc(1, sizeof(QueryPacket));
+		query->OpCode = 7;
+		stat(queries[x], buf);
+		query->timespec = buf->st_mtim;
 	}
 }
 
@@ -154,7 +160,11 @@ int Run_Client(int sockFD, int TID)
 	serverAddr->sin_family = AF_INET;
 	serverAddr->sin_port = htons(sockFD);
 	serverAddr->sin_addr.s_addr = htons(inet_addr("127.0.0.1"));
+	
+	
 	Get_Contents(serverAddr, TID, sockFD);
+	
+	
 	//Creates local hashes ---------------------------
 	gets = calloc(_servContents->count, sizeof(int));
 	puts = calloc(_locContents->count, sizeof(int));
@@ -182,7 +192,7 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	
 	ParsePacket(buf, rw);
 	
-	res = Child_Process(serverAddr, rw);
+	res = Child_Process(sockFD, serverAddr, rw);
 	if(res!=0)
 	{
 		printf("ERROR: TIMEOUT");
@@ -235,14 +245,14 @@ struct Contents* ReadContents(char* file)
 
 
 
-int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct Request_Datagram)
+int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type)//, struct Request_Datagram)
 {
 	struct DataPacket* data;
 	struct ACKPacket* ack = malloc(sizeof(char)*4);;
 	struct ErrorPacket* err;
 	char FDNE[] = "File Does not Exist\0";
 	char FAE[] = "File Already Exists";
-	uint16_t port = 0; 
+	//uint16_t port = 0; 
 	int alive = 1;
 	
 	fd_set readfds;
@@ -257,7 +267,7 @@ int Child_Process( struct sockaddr_in * dest, struct RWPacket* type)//, struct R
 	int opCode, blockNum, errsv, written, read;
 	FILE * fp;
 	
-	int socketFD = MakeSocket(&port);
+
 	int nfds = socketFD+1;
 	struct sockaddr_in clientAddr;
 	socklen_t addrLen = sizeof(struct sockaddr_in);
