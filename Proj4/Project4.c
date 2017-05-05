@@ -143,10 +143,11 @@ int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in server
 	
 	for(int x=0; x<queryCt;x++)
 	{
-		query = calloc(1, sizeof(QueryPacket));
+		query = calloc(1, sizeof(struct QueryPacket));
 		query->OpCode = 7;
 		stat(queries[x], buf);
-		query->timespec = buf->st_mtim;
+		query->timestamp = buf->st_mtim;
+		memcpy(query->Filename, queries[x], strlen(queries[x]));
 	}
 }
 
