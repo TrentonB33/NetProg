@@ -577,6 +577,7 @@ int RunServer(int sockFD)
 		* send a write request for the file with the hashes. */
 		else if (opCode == 6)
 		{
+			printf("In the contents request!\n");
 			MakeContentRequest(hashFile, result);
 			Child_Process(childFD, clientAddr, (struct RWPacket *) result);
 			
@@ -777,7 +778,7 @@ char* SetupFiles(char* tempDir, char* hashFile, int* hashFD)
 //Make A Content Write Request
 void MakeContentRequest(char* hashFile, void* result)
 {
-	struct RWPacket* rw;
+	struct ContentPacket* rw;
 	rw = calloc(1, sizeof(char)*512);
 	rw->OpCode = 2;
 	//printf("%d\n", rw->OpCode);
