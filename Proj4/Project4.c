@@ -161,8 +161,8 @@ int Run_Client(int sockFD, int TID)
 	char ** diffs;
 	int* gets, *puts, queries = 0;
 	serverAddr->sin_family = AF_INET;
-	serverAddr->sin_port = htons(sockFD);
-	serverAddr->sin_addr.s_addr = htons(inet_addr("127.0.0.1"));
+	serverAddr->sin_port = htons(TID);
+	serverAddr->sin_addr.s_addr = inet_addr("127.0.0.1");
 	
 	
 	Get_Contents(serverAddr, TID, sockFD);
@@ -189,8 +189,20 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	struct RWPacket* rw = calloc(1, sizeof(struct RWPacket));
 	socklen_t addrLen = sizeof(struct sockaddr_in);
 	init->ClientTID = TID;
-	init->OpCode = 6;  //Contents OpCode
+	init->OpCode = htons(6);  //Contents OpCode
+	
+	printf("In Get_Contents.\n");
+	printf("Server Address: %d    Port: %d    Socket FD: %d\n", 
+		   ntohl(serverAddr->sin_addr.s_addr), ntohs(serverAddr->sin_port), sockFD);
+	
+	printf("Errno before the send: %d\n", errno);
+	
 	sentAmt = sendto(sockFD, init, sizeof(struct ContentPacket), 0, (struct sockaddr*)serverAddr,sizeof(struct sockaddr_in)); //Send initial contents packet
+	if(sentAmt < 0)
+	{
+		printf("Sendto broke ya fool.\n Errno: %d\n", errno);
+		
+	}
 	read = recvfrom(sockFD, buf, MAXSIZE, 0, (struct sockaddr*) serverAddr, &addrLen);
 	
 	ParsePacket(buf, rw);
@@ -474,7 +486,7 @@ int main (int arc, char** argv)
 	}
 	//printf("Test--\nCount: %d\nHash: %s\nFileName: %s\n",_servContents->count, _servContents->Hashes[0], _servContents->Filenames[0]);
 	
-	/*
+	
 	
 	
 	printf("%d\n", (int)port);
@@ -485,9 +497,12 @@ int main (int arc, char** argv)
 	}
 		
 	if(strcmp(argv[1],"client") == 0)
-		socketFD = MakeSocket(&port);
+	{
+		uint16_t clPort = 0;
+		socketFD = MakeSocket(&clPort);
 		Run_Client(socketFD, port);
-	*/
+	}
+	
 	return EXIT_SUCCESS;
 }
 
@@ -522,14 +537,15 @@ int RunServer(int sockFD)
 	
 	while(running)
 	{
-				
+		printf("Running!\n");	
 		bzero(message, MAXSIZE);
 		bzero(clientAddr, sizeof(struct sockaddr_in));
 
 		amtRead = recvfrom(sockFD, message, MAXSIZE, 0, (struct sockaddr *) clientAddr, &addrLen);
 		
 		opCode = ParsePacket(message, result);
-		//printf("Opcode:  %d\n", opCode);
+		printf("Opcode:  %d\n", opCode);
+		
 		/*If the request is for reading or writing a file, then make a child process to
 		* Do so. */																		 
 		if(opCode < 3)
@@ -684,7 +700,7 @@ short ParsePacket(char* buf, void* result)
 	
 	
 	
-	//printf("--------+++++++++ %d",opCode);
+	printf("--------+++++++++ %d\n",opCode);
 	return opCode;
 }
 
