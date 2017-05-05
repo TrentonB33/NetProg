@@ -138,10 +138,14 @@ char** CompareContents(int* _gets, int* _puts, int* qct)
 }
 
 
-int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in serverAddr, int sockFD)
+int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serverAddr, int sockFD)
 {
 	struct QueryPacket * query;
 	struct stat* buf;
+	char readbuf[MAXSIZE];
+	int sentAmt, read, opCode;
+	void* pack;
+	socklen_t addrLen = sizeof(struct sockaddr_in);
 	
 	for(int x=0; x<queryCt;x++)
 	{
@@ -150,6 +154,20 @@ int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in server
 		stat(queries[x], buf);
 		query->timestamp = buf->st_mtim;
 		memcpy(query->Filename, queries[x], strlen(queries[x]));
+		sentAmt = sendto(sockFD, query, sizeof(struct QueryPacket), 0, (struct sockaddr*) serverAddr, sizeof(struct sockaddr_in));
+		read = recvfrom(sockFD, readbuf, MAXSIZE, 0, (struct sockaddr*) serverAddr, &addrLen);
+		opCode = ParsePacket(&readbuf, pack);
+		if(opCode == 1)
+		{
+			Child_Process(sockFD, serverAddr, (struct RWPacket*) pack);
+		} else if(opCode == 2)
+		{
+			remove(query->Filename);
+			Child_Process(sockFD, serverAddr, (struct RWPacket*) pack);
+		}
+		free(query);
+		free(buf);
+		
 	}
 }
 
@@ -190,7 +208,7 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	socklen_t addrLen = sizeof(struct sockaddr_in);
 	init->ClientTID = TID;
 	init->OpCode = 6;  //Contents OpCode
-	sentAmt = sendto(sockFD, init, sizeof(struct ContentPacket), 0, (struct sockaddr*)serverAddr,sizeof(struct sockaddr_in)); //Send initial contents packet
+	sentAmt = sendto(sockFD, init, sizeof(struct ContentPacket), 0, (struct sockaddr*)serverAddr, sizeof(struct sockaddr_in)); //Send initial contents packet
 	read = recvfrom(sockFD, buf, MAXSIZE, 0, (struct sockaddr*) serverAddr, &addrLen);
 	
 	ParsePacket(buf, rw);
