@@ -57,6 +57,8 @@ struct ContentPacket {
 	short OpCode;
 	int HostTID;	
 	int ClientTID;
+	char * Filename;
+	int FilenmLen;
 };
 
 //OpCode 7
@@ -362,6 +364,9 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 		//printf("Sent!\n");
 		blockNum = 1;
 		// cast buf into tftp struct DATAGRAM
+	} else if(WR == 6)
+	{
+		fp = fopen(/*buf.FileName*/type->Filename, "r");
 	}
 	while(alive  && timeoutCount<11)
 	{
