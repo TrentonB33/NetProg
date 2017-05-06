@@ -547,9 +547,14 @@ int RunServer(int sockFD)
 	
 	//Make the temporary file system
 	char tempDir[] = "temp.XXXXXX\0";
-	char hashFile[] = ".4220_file_list.txt\0";
+	char hashFile[] = "/.4220_file_list.txt\0";
 	int hashFD = 0;
-	SetupFiles(tempDir, hashFile, &hashFD);
+	char* tempName = SetupFiles(tempDir, hashFile, &hashFD);
+	
+	char hashPlace[strlen(tempName)+strlen(hashFile)];
+	memcpy(hashPlace, tempName, strlen(tempName));
+	memcpy(hashPlace+strlen(tempName), hashFile, strlen(hashFile));
+	printf("%s\n", hashPlace);
 	
 	uint16_t childPort = 0;
 	int childFD = MakeSocket(&childPort);
@@ -600,7 +605,7 @@ int RunServer(int sockFD)
 		else if (opCode == 6)
 		{
 			printf("In the contents request!\n");
-			MakeContentRequest(hashFile, result);
+			MakeContentRequest(hashPlace, result);
 			Child_Process(childFD, clientAddr, (struct RWPacket *) result);
 			
 			
