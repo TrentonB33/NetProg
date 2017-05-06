@@ -145,7 +145,7 @@ int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serve
 	struct stat* buf;
 	char readbuf[MAXSIZE];
 	int sentAmt, read, opCode;
-	void* pack;
+	void* pack = calloc(516, sizeof(char));
 	socklen_t addrLen = sizeof(struct sockaddr_in);
 	
 	for(int x=0; x<queryCt;x++)
@@ -206,6 +206,7 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	int sentAmt = 0, read = 0, res = 0, tick = 0;
 	char buf[MAXSIZE];
 	struct RWPacket* rw = calloc(1, sizeof(struct RWPacket));
+	struct sockaddr_in* _serverAddr;
 	socklen_t addrLen = sizeof(struct sockaddr_in);
 	init->ClientTID = TID;
 	init->OpCode = htons(6);  //Contents OpCode
@@ -215,17 +216,18 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	
 	printf("Errno before the send: %d\n", errno);
 	
-	sentAmt = sendto(sockFD, init, sizeof(struct ContentPacket), 0, (struct sockaddr*)serverAddr,sizeof(struct sockaddr_in)); //Send initial contents packet
+	sentAmt = sendto(sockFD, init, sizeof(struct ContentPacket), 0, (struct sockaddr*)serverAddr, sizeof(struct sockaddr_in)); //Send initial contents packet
 	if(sentAmt < 0)
 	{
 		printf("Sendto broke ya fool.\n Errno: %d\n", errno);
 		
 	}
-	read = recvfrom(sockFD, buf, MAXSIZE, MSG_DONTWAIT, (struct sockaddr*) serverAddr, &addrLen);
+	//read = recvfrom(sockFD, buf, MAXSIZE, MSG_DONTWAIT, (struct sockaddr*) serverAddr, &addrLen);
 	while(read==0 && tick<5)
 	{
 		printf("tick\n");
 		sleep(1);
+		read = recvfrom(sockFD, buf, MAXSIZE, MSG_DONTWAIT, (struct sockaddr*) serverAddr, &addrLen);
 		tick++;
 	}
 	printf("here\n");
@@ -314,6 +316,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 	
 	blockNum = 0;
 	tv.tv_sec = 1;
+	tv.tv_usec = 0;
 	bzero(buf, BufLen);
 	//perror("Nut\n");
 	if(WR == 1)
@@ -366,18 +369,27 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 		ack = malloc(sizeof(char)*4);
 		ack->OpCode = htons(4);
 		ack->Block = htons(blockNum);
-		sendto(socketFD, ack,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
+		sendto(socketFD, ack,516,0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));
 		printf("Sent!\n");
 		blockNum = 1;
 		// cast buf into tftp struct DATAGRAM
 	} else if(WR == 6)
 	{
 		fp = fopen(/*buf.FileName*/((struct ContentPacket *)type)->Filename, "r");
+		//free(data);
+		read = fread(&block, 1, BufLen, fp);
+		//printf("Read: %d", read);
+		data = malloc(sizeof(char)*516);
+		data->OpCode = htons(3);
+		data->Block = htons(blockNum);
+		//data->Data = block;
+		memcpy(data->Data, block, 512);
+		written = sendto(socketFD, data, read+4,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 	}
 	while(alive  && timeoutCount<11)
 	{
 		//usleep(10);
-		printf("HI! %d, %d\n", timeoutCount, blockNum);
+		printf("HI! %d, %d     %d\n", timeoutCount, blockNum, ntohs(dest->sin_port));
 		bzero(buf, BufLen);
 		FD_ZERO(&readfds);
 		FD_SET(socketFD, &readfds);
@@ -434,7 +446,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 
 				
 			} else if(opCode == 4){
-				printf("but");
+				//printf("but");
 				if(written<512)
 				{
 					/*free(data);
@@ -529,6 +541,7 @@ int main (int arc, char** argv)
 	{
 		uint16_t clPort = 0;
 		socketFD = MakeSocket(&clPort);
+		printf("%d\n",clPort);
 		Run_Client(socketFD, port);
 	}
 	
@@ -626,7 +639,7 @@ int RunServer(int sockFD)
 			
 			
 			printf("Opcode in contents: %d\n", ntohs(((struct RWPacket*)result)->OpCode));
-			Child_Process(childFD, clientAddr, (struct RWPacket *) cp);
+			Child_Process(sockFD, clientAddr, (struct RWPacket *) cp);
 			
 			free(cp);
 
@@ -638,6 +651,7 @@ int RunServer(int sockFD)
 		}
 		else
 		{
+			printf("FUCKING GOD DAMN SNAKES IN MY CODE\n");
 			SendErrorPacket(sockFD, 0, 
 				"Cannot send requests other than read and write to the server.",
 				clientAddr);
@@ -716,7 +730,7 @@ short ParsePacket(char* buf, void* result)
 	struct QueryPacket* qp;
 	char * errMsg;
 	memcpy(&opCode, buf, codeLen);
-	//printf("-------------------------------------------%d    %d\n", opCode,ntohs(opCode));
+	printf("-------------------------------------------%d    %d\n", opCode,ntohs(opCode));
 	opCode = ntohs(opCode);
 	
 	if(opCode == 1 || opCode == 2)
@@ -849,7 +863,7 @@ void MakeContentRequest(char* hashFile, void* result)
 	
 	
 	rw = calloc(1, sizeof(char)*512);
-	rw->OpCode = 2;
+	rw->OpCode = htons(2);
 	//printf("%d\n", rw->OpCode);
 	rw->Filename = strdup(hashFile);	
 	
