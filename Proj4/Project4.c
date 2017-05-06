@@ -184,9 +184,9 @@ int Run_Client(int sockFD, int TID)
 	serverAddr->sin_port = htons(TID);
 	serverAddr->sin_addr.s_addr = inet_addr("127.0.0.1");
 	
-	
+
 	Get_Contents(serverAddr, TID, sockFD);
-	
+
 	
 	//Creates local hashes ---------------------------
 	gets = calloc(_servContents->count, sizeof(int));
@@ -204,7 +204,7 @@ int Run_Client(int sockFD, int TID)
 int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 {
 	struct ContentPacket* init = calloc(1, sizeof(struct ContentPacket));
-	int sentAmt = 0, read, res = 0;
+	int sentAmt = 0, read = 0, res = 0, tick = 0;
 	char buf[MAXSIZE];
 	struct RWPacket* rw = calloc(1, sizeof(struct RWPacket));
 	socklen_t addrLen = sizeof(struct sockaddr_in);
@@ -222,10 +222,16 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 		printf("Sendto broke ya fool.\n Errno: %d\n", errno);
 		
 	}
-	read = recvfrom(sockFD, buf, MAXSIZE, 0, (struct sockaddr*) serverAddr, &addrLen);
-	
+	read = recvfrom(sockFD, buf, MAXSIZE, MSG_DONTWAIT, (struct sockaddr*) serverAddr, &addrLen);
+	while(read==0 && tick<5)
+	{
+		printf("tick\n");
+		sleep(1);
+		tick++;
+	}
+	printf("here\n");
 	ParsePacket(buf, rw);
-	
+	printf("here\n");
 	res = Child_Process(sockFD, serverAddr, rw);
 	if(res!=0)
 	{
@@ -361,7 +367,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 		ack->OpCode = htons(4);
 		ack->Block = htons(blockNum);
 		sendto(socketFD, ack,516,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
-		//printf("Sent!\n");
+		printf("Sent!\n");
 		blockNum = 1;
 		// cast buf into tftp struct DATAGRAM
 	} else if(WR == 6)
@@ -371,13 +377,13 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 	while(alive  && timeoutCount<11)
 	{
 		//usleep(10);
-		//printf("HI! %d, %d\n", timeoutCount, blockNum);
+		printf("HI! %d, %d\n", timeoutCount, blockNum);
 		bzero(buf, BufLen);
 		FD_ZERO(&readfds);
 		FD_SET(socketFD, &readfds);
 		tv.tv_sec = 1;
 		result = select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
-		//printf("maybe\n");
+		printf("maybe\n");
 		if(result>0 || blockNum == 0)
 		{
 			//printf("here!\n");
@@ -802,7 +808,7 @@ void MakeContentRequest(char* hashFile, void* result)
 {
 	struct ContentPacket* rw;
 	rw = calloc(1, sizeof(char)*512);
-	rw->OpCode = 2;
+	rw->OpCode = htons(2);
 	//printf("%d\n", rw->OpCode);
 	rw->Filename = strdup(hashFile);
 	memcpy(result, rw,512);
