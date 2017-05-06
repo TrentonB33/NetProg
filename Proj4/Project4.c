@@ -26,7 +26,7 @@
 //OpCode 1/2
 struct RWPacket {
 	short OpCode;
-	char* Filename;
+	char Filename[255];
 	char* Mode;
 	int HostTID;
 	int ClientTID;
@@ -235,7 +235,6 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	printf("here\n");
 	res = Child_Process(sockFD, serverAddr, rw);
 	printf("bap\n");
-	exit(1);
 	if(res!=0)
 	{
 		printf("ERROR: TIMEOUT");
@@ -642,7 +641,7 @@ int RunServer(int sockFD)
 			
 			printf("In the contents request!\n");
 
-			MakeContentRequest(hashFile, result);
+			MakeContentRequest(hashFile+1, result);
 			
 			sendto(sockFD, result, 512, 0, (struct sockaddr*)clientAddr, sizeof(struct sockaddr_in));
 			
@@ -650,7 +649,7 @@ int RunServer(int sockFD)
 			cp->OpCode = 6;
 			cp->Filename = hashPlace;
 			
-			
+			printf("Filename in contents: %s\n", ((struct RWPacket*)result)->Filename);
 			printf("Opcode in contents: %d\n", ntohs(((struct RWPacket*)result)->OpCode));
 			Child_Process(sockFD, clientAddr, (struct RWPacket *) cp);
 			
@@ -751,7 +750,8 @@ short ParsePacket(char* buf, void* result)
 		rw = calloc(1, sizeof(char)*512);
 		rw->OpCode = opCode;
 		//printf("%d\n", rw->OpCode);
-		rw->Filename = strdup(buf+2);
+		//rw->Filename = strdup(buf+2);
+		memcpy(rw->Filename, buf+2, strlen(buf+2));
 		memcpy(result, rw,512);
 		//free(rw);
 		
@@ -878,7 +878,10 @@ void MakeContentRequest(char* hashFile, void* result)
 	rw = calloc(1, sizeof(char)*512);
 	rw->OpCode = htons(2);
 	//printf("%d\n", rw->OpCode);
-	rw->Filename = strdup(hashFile);	
+	memcpy(rw->Filename, hashFile, strlen(hashFile));
+	
+	//printf("Making the write request.\n");
+	write(1, rw->Filename, 255);
 	
 	memcpy(result, rw,512);
 	
