@@ -372,7 +372,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 		// cast buf into tftp struct DATAGRAM
 	} else if(WR == 6)
 	{
-		fp = fopen(/*buf.FileName*/type->Filename, "r");
+		fp = fopen(/*buf.FileName*/((struct ContentPacket *)type)->Filename, "r");
 	}
 	while(alive  && timeoutCount<11)
 	{
@@ -541,6 +541,8 @@ int RunServer(int sockFD)
 	struct sockaddr_in* clientAddr = (struct sockaddr_in*)calloc(1,sizeof(struct sockaddr_in));
 	socklen_t addrLen = sizeof(struct sockaddr_in);
 	
+	struct ContentPacket* cp;
+	
 	int amtRead = 0;
 	char message[MAXSIZE];
 	
@@ -611,9 +613,23 @@ int RunServer(int sockFD)
 		* send a write request for the file with the hashes. */
 		else if (opCode == 6)
 		{
+			
 			printf("In the contents request!\n");
-			MakeContentRequest(hashFile+1, result);
-			Child_Process(childFD, clientAddr, (struct RWPacket *) result);
+
+			MakeContentRequest(hashFile, result);
+			
+			sendto(sockFD, result, 512, 0, (struct sockaddr*)clientAddr, sizeof(struct sockaddr_in));
+			
+			cp = (struct ContentPacket* )calloc(1, sizeof(char)*512);
+			cp->OpCode = 6;
+			cp->Filename = hashPlace;
+			
+			
+			printf("Opcode in contents: %d\n", ntohs(((struct RWPacket*)result)->OpCode));
+			Child_Process(childFD, clientAddr, (struct RWPacket *) cp);
+			
+			free(cp);
+
 			
 			
 		}else if (opCode == 7)
@@ -829,12 +845,19 @@ char* SetupFiles(char* tempDir, char* hashFile, int* hashFD)
 //Make A Content Write Request
 void MakeContentRequest(char* hashFile, void* result)
 {
-	struct ContentPacket* rw;
+	struct RWPacket* rw;
+	
+	
 	rw = calloc(1, sizeof(char)*512);
 	rw->OpCode = 2;
 	//printf("%d\n", rw->OpCode);
-	rw->Filename = strdup(hashFile);
+	rw->Filename = strdup(hashFile);	
+	
 	memcpy(result, rw,512);
+	
+	free(rw);
+	
+	
 
 }
 
