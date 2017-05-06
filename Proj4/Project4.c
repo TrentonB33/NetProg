@@ -57,6 +57,8 @@ struct ContentPacket {
 	short OpCode;
 	int HostTID;	
 	int ClientTID;
+	char * Filename;
+	int FilenmLen;
 };
 
 //OpCode 7
@@ -138,10 +140,14 @@ char** CompareContents(int* _gets, int* _puts, int* qct)
 }
 
 
-int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in serverAddr, int sockFD)
+int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serverAddr, int sockFD)
 {
 	struct QueryPacket * query;
 	struct stat* buf;
+	char readbuf[MAXSIZE];
+	int sentAmt, read, opCode;
+	void* pack;
+	socklen_t addrLen = sizeof(struct sockaddr_in);
 	
 	for(int x=0; x<queryCt;x++)
 	{
@@ -150,6 +156,20 @@ int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in server
 		stat(queries[x], buf);
 		query->timestamp = buf->st_mtim;
 		memcpy(query->Filename, queries[x], strlen(queries[x]));
+		sentAmt = sendto(sockFD, query, sizeof(struct QueryPacket), 0, (struct sockaddr*) serverAddr, sizeof(struct sockaddr_in));
+		read = recvfrom(sockFD, readbuf, MAXSIZE, 0, (struct sockaddr*) serverAddr, &addrLen);
+		opCode = ParsePacket(&readbuf, pack);
+		if(opCode == 1)
+		{
+			Child_Process(sockFD, serverAddr, (struct RWPacket*) pack);
+		} else if(opCode == 2)
+		{
+			remove(query->Filename);
+			Child_Process(sockFD, serverAddr, (struct RWPacket*) pack);
+		}
+		free(query);
+		free(buf);
+		
 	}
 }
 
@@ -190,7 +210,6 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	socklen_t addrLen = sizeof(struct sockaddr_in);
 	init->ClientTID = TID;
 	init->OpCode = htons(6);  //Contents OpCode
-	
 	printf("In Get_Contents.\n");
 	printf("Server Address: %d    Port: %d    Socket FD: %d\n", 
 		   ntohl(serverAddr->sin_addr.s_addr), ntohs(serverAddr->sin_port), sockFD);
@@ -345,6 +364,9 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 		//printf("Sent!\n");
 		blockNum = 1;
 		// cast buf into tftp struct DATAGRAM
+	} else if(WR == 6)
+	{
+		fp = fopen(/*buf.FileName*/type->Filename, "r");
 	}
 	while(alive  && timeoutCount<11)
 	{
