@@ -382,6 +382,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 		FD_ZERO(&readfds);
 		FD_SET(socketFD, &readfds);
 		tv.tv_sec = 1;
+		printf("Right before the select!\n");
 		result = select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
 		printf("maybe\n");
 		if(result>0 || blockNum == 0)
@@ -607,6 +608,9 @@ int RunServer(int sockFD)
 				curChildren++;
 				childProcs[curChildren] = childID;
 			}*/
+		} else if(opCode == 4)
+		{
+			printf("Got an Ack!!!!!!\n");
 		}
 		/*Else, if the opcode tells us to do a contents request, then
 		* send a write request for the file with the hashes. */
