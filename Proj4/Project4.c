@@ -234,6 +234,7 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	ParsePacket(buf, rw);
 	printf("here\n");
 	res = Child_Process(sockFD, serverAddr, rw);
+	printf("bap\n");
 	exit(1);
 	if(res!=0)
 	{
@@ -306,7 +307,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 	
 	short WR = type->OpCode;
 	void* recv = NULL;
-	int opCode, blockNum, errsv, written, read;
+	int opCode, blockNum, errsv, written = 0, read;
 	FILE * fp;
 	
 
@@ -365,6 +366,8 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 			fclose(fp);*/
 			return 1;
 		}
+		close(fp);
+		printf("----------------%s\n", type->Filename);
 		fp = fopen(type->Filename, "w");
 		ack = malloc(sizeof(char)*4);
 		ack->OpCode = htons(4);
@@ -380,6 +383,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 		read = fread(&block, 1, BufLen, fp);
 		//printf("Read: %d", read);
 		data = malloc(sizeof(char)*516);
+		blockNum = 1;
 		data->OpCode = htons(3);
 		data->Block = htons(blockNum);
 		//data->Data = block;
@@ -425,13 +429,18 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 				printf("put %d\n", read);
 				if(ntohs(data->Block) == blockNum)
 				{
-					written = fwrite(data->Data, 1, read-4, fp);
+					printf("%d\n", read-4);
+					if(read-4 > 0)
+					{
+						written = fwrite(data->Data, 1, read-4, fp);
+					} else written = 0;
 					printf("write:  %d\n", written);					
 					ack->OpCode = htons(4);
 					ack->Block = htons(blockNum);
 					sendto(socketFD, ack, 4,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 					if(written < 512)
 					{
+						printf("how do you do\n");
 						fclose(fp);
 						//printf("dead\n");
 						/*free(data);
