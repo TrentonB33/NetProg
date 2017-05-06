@@ -553,9 +553,14 @@ int RunServer(int sockFD)
 	
 	//Make the temporary file system
 	char tempDir[] = "temp.XXXXXX\0";
-	char hashFile[] = ".4220_file_list.txt\0";
+	char hashFile[] = "/.4220_file_list.txt\0";
 	int hashFD = 0;
-	SetupFiles(tempDir, hashFile, &hashFD);
+	char* tempName = SetupFiles(tempDir, hashFile, &hashFD);
+	
+	char hashPlace[strlen(tempName)+strlen(hashFile)];
+	memcpy(hashPlace, tempName, strlen(tempName));
+	memcpy(hashPlace+strlen(tempName), hashFile, strlen(hashFile));
+	printf("%s\n", hashPlace);
 	
 	uint16_t childPort = 0;
 	int childFD = MakeSocket(&childPort);
@@ -606,11 +611,14 @@ int RunServer(int sockFD)
 		else if (opCode == 6)
 		{
 			printf("In the contents request!\n");
-			MakeContentRequest(hashFile, result);
+			MakeContentRequest(hashPlace, result);
 			Child_Process(childFD, clientAddr, (struct RWPacket *) result);
 			
 			
-		}										      
+		}else if (opCode == 7)
+		{
+			
+		}
 		else
 		{
 			SendErrorPacket(sockFD, 0, 
@@ -688,6 +696,7 @@ short ParsePacket(char* buf, void* result)
 	struct DataPacker* dp;
 	struct ACKPacket* ap;
 	struct ErrorPacket* ep;
+	struct QueryPacket* qp;
 	char * errMsg;
 	memcpy(&opCode, buf, codeLen);
 	//printf("-------------------------------------------%d    %d\n", opCode,ntohs(opCode));
@@ -725,7 +734,11 @@ short ParsePacket(char* buf, void* result)
 		memcpy(result, ep, 512);
 		//free(ep);
 		
-	} 
+	} else if(opCode == 7)
+	{
+		qp = calloc(1, sizeof(struct QueryPacket));
+		qp->OpCode = opCode;
+	}
 	
 	
 	
@@ -796,7 +809,16 @@ char* SetupFiles(char* tempDir, char* hashFile, int* hashFD)
 {
 	char* tempName = mkdtemp(tempDir);
 	
-	*hashFD = open(hashFile, O_CREAT|O_WRONLY|O_TRUNC);
+	int tempSize = strlen(tempName);
+	int hashSize = strlen(hashFile);
+	
+	char hashTemp[tempSize+hashSize+2];
+	memcpy(hashTemp, tempName, tempSize);
+	hashTemp[tempSize] = '/';
+	memcpy(hashTemp+tempSize+1, hashFile, hashSize);
+	hashTemp[tempSize+hashSize+1] = '\0';
+	
+	*hashFD = open(hashTemp, O_CREAT|O_WRONLY|O_TRUNC);
 	
 	return tempName;
 	
