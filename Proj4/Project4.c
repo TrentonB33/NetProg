@@ -58,7 +58,6 @@ struct ContentPacket {
 	int HostTID;	
 	int ClientTID;
 	char * Filename;
-	int FilenmLen;
 };
 
 //OpCode 7
@@ -158,7 +157,7 @@ int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serve
 		memcpy(query->Filename, queries[x], strlen(queries[x]));
 		sentAmt = sendto(sockFD, query, sizeof(struct QueryPacket), 0, (struct sockaddr*) serverAddr, sizeof(struct sockaddr_in));
 		read = recvfrom(sockFD, readbuf, MAXSIZE, 0, (struct sockaddr*) serverAddr, &addrLen);
-		opCode = ParsePacket(&readbuf, pack);
+		opCode = ParsePacket(readbuf, pack);
 		if(opCode == 1)
 		{
 			Child_Process(sockFD, serverAddr, (struct RWPacket*) pack);
@@ -233,6 +232,7 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	ParsePacket(buf, rw);
 	printf("here\n");
 	res = Child_Process(sockFD, serverAddr, rw);
+	exit(1);
 	if(res!=0)
 	{
 		printf("ERROR: TIMEOUT");
@@ -383,7 +383,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 		FD_SET(socketFD, &readfds);
 		tv.tv_sec = 1;
 		result = select(nfds, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
-		printf("maybe\n");
+		printf("maybe %d\n", result);
 		if(result>0 || blockNum == 0)
 		{
 			//printf("here!\n");
@@ -434,6 +434,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 
 				
 			} else if(opCode == 4){
+				printf("but");
 				if(written<512)
 				{
 					/*free(data);
@@ -611,7 +612,7 @@ int RunServer(int sockFD)
 		else if (opCode == 6)
 		{
 			printf("In the contents request!\n");
-			MakeContentRequest(hashPlace, result);
+			MakeContentRequest(hashFile+1, result);
 			Child_Process(childFD, clientAddr, (struct RWPacket *) result);
 			
 			
@@ -830,7 +831,7 @@ void MakeContentRequest(char* hashFile, void* result)
 {
 	struct ContentPacket* rw;
 	rw = calloc(1, sizeof(char)*512);
-	rw->OpCode = htons(2);
+	rw->OpCode = 2;
 	//printf("%d\n", rw->OpCode);
 	rw->Filename = strdup(hashFile);
 	memcpy(result, rw,512);
