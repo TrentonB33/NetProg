@@ -107,6 +107,14 @@ void strip_char(char *str, char strip)
     *q = '\0';
 }
 
+
+/***
+	This function use the two list of hashes, that which is on the server and that which is on the client end, and determines which each does and doesn't have and 
+	if there are any that have pending changes.  It echoes back 2 int arrays whose entries correspond with entries in the hashed file lists.  Each is marked as 1 if both sides have the file
+	or zero if only one side has it.  It returns a list of files that both sides have but have different hashes.  THIS FUNCTION IS FULLY FUNCTIONAL
+	
+***/
+
 char** CompareContents(int* _gets, int* _puts, int* qct)
 {
 	int* gets = _gets, * puts = _puts, queryCt = 0, queryarr = 15;
@@ -138,6 +146,10 @@ char** CompareContents(int* _gets, int* _puts, int* qct)
 	return queries;
 }
 
+/***
+	This function is designed to take a list of files that both the client and the server have but who's hashes differ and try to rectify the difference.
+
+***/
 
 int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serverAddr, int sockFD)
 {
@@ -172,6 +184,9 @@ int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serve
 	}
 }
 
+/***
+	The base runner function for client operation.
+***/
 
 int Run_Client(int sockFD, int TID)
 {
@@ -198,7 +213,12 @@ int Run_Client(int sockFD, int TID)
 	return 0;
 }
 
+/***
+	This function queries the server asking for the file containing the list of file hashes and filenames.  The transfer of this file happens over tftp over UDP based off of one of 
+	our previous assignments.
+	THIS FUNCTION IS FULLY FUNCTIONAL
 
+***/
 
 int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 {
@@ -248,6 +268,11 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	return 0;
 }
 
+/***
+	Because we use tftp to transfer the file containing the hashes we need to read it back into memory.  This function achieves that functionality.
+	
+	THIS FUNCTION IS FULLY FUNCTIONAL
+***/
 
 struct Contents* ReadContents(char* file)
 {
@@ -285,7 +310,10 @@ struct Contents* ReadContents(char* file)
 	return content;
 }
 
-
+/***
+	This is the function that handles TFTP operations on behalf of the client and the server.
+	THIS FUNCTION IS FULLY FUNCTIONAL
+***/
 
 int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type)//, struct Request_Datagram)
 {
