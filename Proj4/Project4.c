@@ -26,7 +26,7 @@
 //OpCode 1/2
 struct RWPacket {
 	short OpCode;
-	char* Filename;
+	char Filename[255];
 	char* Mode;
 	int HostTID;
 	int ClientTID;
@@ -107,6 +107,14 @@ void strip_char(char *str, char strip)
     *q = '\0';
 }
 
+
+/***
+	This function use the two list of hashes, that which is on the server and that which is on the client end, and determines which each does and doesn't have and 
+	if there are any that have pending changes.  It echoes back 2 int arrays whose entries correspond with entries in the hashed file lists.  Each is marked as 1 if both sides have the file
+	or zero if only one side has it.  It returns a list of files that both sides have but have different hashes.  THIS FUNCTION IS FULLY FUNCTIONAL
+	
+***/
+
 char** CompareContents(int* _gets, int* _puts, int* qct)
 {
 	int* gets = _gets, * puts = _puts, queryCt = 0, queryarr = 15;
@@ -138,6 +146,10 @@ char** CompareContents(int* _gets, int* _puts, int* qct)
 	return queries;
 }
 
+/***
+	This function is designed to take a list of files that both the client and the server have but who's hashes differ and try to rectify the difference.
+
+***/
 
 int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serverAddr, int sockFD)
 {
@@ -174,6 +186,9 @@ int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serve
 	return EXIT_SUCCESS;
 }
 
+/***
+	The base runner function for client operation.
+***/
 
 int Run_Client(int sockFD, int TID)
 {
@@ -200,7 +215,12 @@ int Run_Client(int sockFD, int TID)
 	return 0;
 }
 
+/***
+	This function queries the server asking for the file containing the list of file hashes and filenames.  The transfer of this file happens over tftp over UDP based off of one of 
+	our previous assignments.
+	THIS FUNCTION IS FULLY FUNCTIONAL
 
+***/
 
 int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 {
@@ -236,7 +256,7 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	ParsePacket(buf, rw);
 	printf("here\n");
 	res = Child_Process(sockFD, serverAddr, rw);
-	exit(1);
+	printf("bap\n");
 	if(res!=0)
 	{
 		printf("ERROR: TIMEOUT");
@@ -250,6 +270,11 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	return 0;
 }
 
+/***
+	Because we use tftp to transfer the file containing the hashes we need to read it back into memory.  This function achieves that functionality.
+	
+	THIS FUNCTION IS FULLY FUNCTIONAL
+***/
 
 struct Contents* ReadContents(char* file)
 {
@@ -287,7 +312,10 @@ struct Contents* ReadContents(char* file)
 	return content;
 }
 
-
+/***
+	This is the function that handles TFTP operations on behalf of the client and the server.
+	THIS FUNCTION IS FULLY FUNCTIONAL
+***/
 
 int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type)//, struct Request_Datagram)
 {
@@ -308,7 +336,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 	
 	short WR = type->OpCode;
 	void* recv = NULL;
-	int opCode, blockNum, errsv, written, read;
+	int opCode, blockNum, errsv, written = 0, read;
 	FILE * fp;
 	
 
@@ -367,6 +395,8 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 			fclose(fp);*/
 			return 1;
 		}
+		close(fp);
+		printf("----------------%s\n", type->Filename);
 		fp = fopen(type->Filename, "w");
 		ack = malloc(sizeof(char)*4);
 		ack->OpCode = htons(4);
@@ -382,6 +412,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 		read = fread(&block, 1, BufLen, fp);
 		//printf("Read: %d", read);
 		data = malloc(sizeof(char)*516);
+		blockNum = 1;
 		data->OpCode = htons(3);
 		data->Block = htons(blockNum);
 		//data->Data = block;
@@ -427,13 +458,18 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 				printf("put %d\n", read);
 				if(ntohs(data->Block) == blockNum)
 				{
-					written = fwrite(data->Data, 1, read-4, fp);
+					printf("%d\n", read-4);
+					if(read-4 > 0)
+					{
+						written = fwrite(data->Data, 1, read-4, fp);
+					} else written = 0;
 					printf("write:  %d\n", written);					
 					ack->OpCode = htons(4);
 					ack->Block = htons(blockNum);
 					sendto(socketFD, ack, 4,0, (struct sockaddr*)dest,sizeof(struct sockaddr_in));
 					if(written < 512)
 					{
+						printf("how do you do\n");
 						fclose(fp);
 						//printf("dead\n");
 						/*free(data);
@@ -748,7 +784,8 @@ short ParsePacket(char* buf, void* result)
 		rw = calloc(1, sizeof(char)*512);
 		rw->OpCode = opCode;
 		//printf("%d\n", rw->OpCode);
-		rw->Filename = strdup(buf+2);
+		//rw->Filename = strdup(buf+2);
+		memcpy(rw->Filename, buf+2, strlen(buf+2));
 		memcpy(result, rw,512);
 		//free(rw);
 		
@@ -889,7 +926,7 @@ void MakeContentRequest(char* hashFile, void* result)
 	rw = calloc(1, sizeof(char)*512);
 	rw->OpCode = htons(2);
 	//printf("%d\n", rw->OpCode);
-	rw->Filename = strdup(hashFile);
+	memcpy(rw->Filename, hashFile, strlen(hashFile));
 	
 	//printf("Making the write request.\n");
 	write(1, rw->Filename, 255);
