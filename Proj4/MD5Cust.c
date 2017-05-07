@@ -1,3 +1,8 @@
+/* This program attempts to recreate the MD5 hash, and does so almost perfectly.
+*  The only problem is that when creating the integers inside the hashing loop,
+*  The integers are not created correctly from the 4 chars that they represent
+*/
+
 #include <stdio.h>
 #include <math.h>
 #include <stdint.h>
@@ -36,7 +41,8 @@ void MakeHash(char** hash, char* message, long msgSize);
 unsigned int LeftRotate(unsigned int toShift, int shiftAmt);
 
 
-
+//The function takes in a MD5Hash sturct with a filename, and then populates
+//The hash field after running the contents of the file through the hash
 void GetHash(struct MD5Hash* toPop)
 {	
 	int sizeInBits = 0;
@@ -58,7 +64,7 @@ void GetHash(struct MD5Hash* toPop)
 	sizeOfFile = (long)stats.st_size;
 	index = sizeOfFile;
 	
-	printf("Size of File: %ld\n", sizeOfFile);
+	//printf("Size of File: %ld\n", sizeOfFile);
 	
 	int fd = open(toPop->filename, O_RDONLY);
 	
@@ -69,7 +75,7 @@ void GetHash(struct MD5Hash* toPop)
 	read(fd, buffer, sizeof(char)*sizeOfFile);
 			
 	buffer[sizeOfFile] = 0x80;
-	printf("first bit of the buffer: %x\n", buffer[sizeOfFile]);
+	//printf("first bit of the buffer: %x\n", buffer[sizeOfFile]);
 	index++;
 	
 	//We need a buffer size that can fit into blocks of size 512 bits
@@ -82,18 +88,20 @@ void GetHash(struct MD5Hash* toPop)
 	bzero(&buffer[index], amtToZero+8);//I want to initialize the rest of the data
 	
 	index += amtToZero;
-	printf("Current Size of File: %ld\n", index);
+	//printf("Current Size of File: %ld\n", index);
 	
 	memcpy(&buffer[index], &sizeOfFile, sizeof(long));
 	
 	index += sizeof(long);	
 	
-	for(int i = 0; i < index; i += 4)
+	/*for(int i = 0; i < index; i += 4)
 	{
 		printf("%x\n", buffer[i]);
-	}
+	}*/
 	
 	MakeHash(&result, buffer, index);
+	memcpy(toPop->hash, result, 32);
+	//printf("Hash on the outside: %s\n", toPop->hash);
 	
 }
 
@@ -125,7 +133,7 @@ void MakeHash(char** hash, char* message, long msgSize)
 		for( i = 0; i < 16; i++)
 		{
 			memcpy(&workspace[i], &message[start + i*sizeof(int)], sizeof(int));
-			printf("Value: %x\n", workspace[i]);
+			//printf("Value: %x\n", workspace[i]);
 		}
 		
 		A1 = a0;
@@ -172,7 +180,11 @@ void MakeHash(char** hash, char* message, long msgSize)
 		start += 64;
 	}
 	
-	printf("Hash: %x%x%x%x\n", a0, b0, c0, d0);
+	//printf("Hash: %x%x%x%x\n", a0, b0, c0, d0);
+	//char buffer[32];
+	sprintf(*hash, "%x%x%x%x", a0, b0, c0, d0);
+	//write(1, *hash, 32);
+	//printf("\n");
 }
 
 unsigned int LeftRotate(unsigned int toShift, int shiftAmt)

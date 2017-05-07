@@ -142,7 +142,8 @@ char** CompareContents(int* _gets, int* _puts, int* qct)
 int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serverAddr, int sockFD)
 {
 	struct QueryPacket * query;
-	struct stat* buf;
+	struct stat* buf = NULL;
+	bzero(buf, sizeof(struct stat*));
 	char readbuf[MAXSIZE];
 	int sentAmt, read, opCode;
 	void* pack = calloc(516, sizeof(char));
@@ -170,13 +171,14 @@ int ProcessClientQueries(char ** queries, int queryCt, struct sockaddr_in* serve
 		free(buf);
 		
 	}
+	return EXIT_SUCCESS;
 }
 
 
 int Run_Client(int sockFD, int TID)
 {
 	struct sockaddr_in* serverAddr = (struct sockaddr_in*)calloc(1,sizeof(struct sockaddr_in));
-	socklen_t addrLen = sizeof(struct sockaddr_in);
+	//socklen_t addrLen = sizeof(struct sockaddr_in);
 	char ** diffs;
 	int* gets, *puts, queries = 0;
 	serverAddr->sin_family = AF_INET;
@@ -206,7 +208,7 @@ int Get_Contents(struct sockaddr_in* serverAddr, int TID, int sockFD)
 	int sentAmt = 0, read = 0, res = 0, tick = 0;
 	char buf[MAXSIZE];
 	struct RWPacket* rw = calloc(1, sizeof(struct RWPacket));
-	struct sockaddr_in* _serverAddr;
+	//struct sockaddr_in* _serverAddr;
 	socklen_t addrLen = sizeof(struct sockaddr_in);
 	init->ClientTID = TID;
 	init->OpCode = htons(6);  //Contents OpCode
@@ -500,7 +502,7 @@ int Child_Process(int socketFD, struct sockaddr_in * dest, struct RWPacket* type
 }
 
 
-
+//This is the main function that runs the desired program, either server or client in nature
 int main (int arc, char** argv)
 {
 	uint16_t port = atoi(argv[2]); 	
@@ -549,7 +551,10 @@ int main (int arc, char** argv)
 	return EXIT_SUCCESS;
 }
 
-//Runs the server
+//Runs the server. This entails creating the starting file structure, deleting that structure,
+//and waiting for/parsing incoming client packets.  This is mostly impleneted, but the handling
+//of opcode 7, the query packets, is not implemented, nor is the deletion of the temporary
+//file structure
 int RunServer(int sockFD)
 {
 	struct sockaddr_in* clientAddr = (struct sockaddr_in*)calloc(1,sizeof(struct sockaddr_in));
@@ -677,8 +682,9 @@ int RunServer(int sockFD)
 }
 
 
-//This fuction creates the socket for the server, and binds it to port
-//Most cases this will be port 69 for this homework
+//This fuction creates a socket on either the predefined port, or a random port
+//if the port argument is 0
+//FULLY FUNCTIONAL
 int MakeSocket(uint16_t* port)
 {
 	int domain, type, protocol, serverFD;
@@ -773,6 +779,11 @@ short ParsePacket(char* buf, void* result)
 	{
 		qp = calloc(1, sizeof(struct QueryPacket));
 		qp->OpCode = opCode;
+		memcpy(&(qp->timestamp), buf+2, sizeof(struct timespec));
+		memcpy(qp->Filename, buf+2+sizeof(struct timespec), 255);
+		
+		//copy into result
+		memcpy(result, qp, sizeof(struct QueryPacket));
 	}
 	
 	
@@ -783,6 +794,9 @@ short ParsePacket(char* buf, void* result)
 
 
 //Checks to see if a child process has terminated and modifies the params as needed
+//This function was needed in TFTP, but this new code is now a single process as we
+//Do not need to handle multiple clients.
+//FULLY FUNCTIONAL
 void CheckChildren(pid_t* children, int* curSize)
 {
 	int origSize = *curSize;
@@ -822,12 +836,14 @@ void CheckChildren(pid_t* children, int* curSize)
 }
 
 //Comparator function for qsort
+//FULLY FUNCTIONAL
 int compare (const void * a, const void * b)
 {
   return ( *(int*)b - *(int*)a );
 }
 
-//Send an error packet
+//This is a helper function to send an error packet to the defined address
+//FULLY FUNCTIONAL
 void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* dest)
 {
 	struct ErrorPacket* err;
@@ -839,7 +855,10 @@ void SendErrorPacket(int socketFD, int EC, char* message, struct sockaddr_in* de
 	sendto(socketFD, err, MAXSIZE, 0, (struct sockaddr*)dest, sizeof(struct sockaddr_in));	
 }
 
-//Initialize File Structure
+//Initialize File Structure by create a new temporary directory to house the
+//Files synced with this server. It also create the file list file and places it in this
+//Folder, and returns the temporary directory name, as well as the file list file descriptor
+//FULLY FUNCTIONAL
 char* SetupFiles(char* tempDir, char* hashFile, int* hashFD)
 {
 	char* tempName = mkdtemp(tempDir);
@@ -860,7 +879,8 @@ char* SetupFiles(char* tempDir, char* hashFile, int* hashFD)
 	
 }
 
-//Make A Content Write Request
+//Make A Content Write Request to send the the client to begin the file transfer process
+//FULLY FUNCTIONAL
 void MakeContentRequest(char* hashFile, void* result)
 {
 	struct RWPacket* rw;
@@ -877,10 +897,21 @@ void MakeContentRequest(char* hashFile, void* result)
 	memcpy(result, rw,512);
 	
 	free(rw);
-	
-	
-
 }
+
+//Parse a QueryPacket and see which file is newer
+//If the server file is newer, send a put request
+//If the client file is newer, send a get request
+//NOT IMPLIMENTED
+/*int EvaluateQuery(struct QueryPacket)
+{
+	//struct timespec myTime = 
+}*/
+
+
+
+
+
 
 
 
